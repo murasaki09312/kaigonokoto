@@ -37,7 +37,7 @@ type NavItem = {
 
 const coreNav: NavItem[] = [
   { label: "ダッシュボード", to: "/app", icon: Home },
-  { label: "利用者", icon: Users, disabled: true },
+  { label: "利用者", to: "/app/clients", icon: Users },
   { label: "予約", icon: CalendarCheck2, disabled: true },
   { label: "送迎", icon: Car, disabled: true },
   { label: "記録", icon: ClipboardList, disabled: true },
@@ -47,6 +47,7 @@ const coreNav: NavItem[] = [
 
 const pageTitleMap: Record<string, string> = {
   "/app": "ダッシュボード",
+  "/app/clients": "利用者",
   "/app/users": "ユーザー管理",
 };
 
@@ -106,7 +107,9 @@ export function AppShell() {
   const { user, permissions, logout } = useAuth();
   const navigate = useNavigate();
 
-  const pageTitle = pageTitleMap[pathname] ?? "kaigonokoto";
+  const pageTitle = pathname.startsWith("/app/clients/")
+    ? "利用者詳細"
+    : (pageTitleMap[pathname] ?? "kaigonokoto");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/60 to-background">

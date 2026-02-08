@@ -37,11 +37,14 @@ VITE_API_BASE_URL=http://localhost:3000
 
 - `/login`
 - `/app` (dashboard)
+- `/app/clients` (利用者一覧)
+- `/app/clients/:id` (利用者詳細)
 - `/app/users`
 
 ## Behavior checks
 
 1. `admin@example.com` でログイン
 2. `/app/users` で一覧取得できる
-3. 「新規ユーザー」ダイアログでユーザー作成できる
-4. `staff@example.com` でログインすると「新規ユーザー」ボタンは無効表示になる
+3. `/app/clients` で利用者一覧が取得できる
+4. admin で利用者の作成/編集/削除ができる
+5. `staff@example.com` でログインすると利用者の作成/編集/削除ができない

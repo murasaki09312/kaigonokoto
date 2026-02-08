@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
+import type { Client, ClientPayload, ClientStatus } from "@/types/client";
 
 export type ApiError = {
   code: string;
@@ -104,6 +105,64 @@ export async function createUser(payload: {
   try {
     const { data } = await client.post<{ user: User }>("/users", payload);
     return data.user;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listClients(params?: {
+  q?: string;
+  status?: ClientStatus | "all";
+}): Promise<{ clients: Client[]; total: number }> {
+  try {
+    const searchParams = new URLSearchParams();
+
+    if (params?.q) searchParams.set("q", params.q);
+    if (params?.status && params.status !== "all") searchParams.set("status", params.status);
+
+    const query = searchParams.toString();
+    const path = query.length > 0 ? `/clients?${query}` : "/clients";
+    const { data } = await client.get<{ clients: Client[]; meta: { total: number } }>(path);
+
+    return {
+      clients: data.clients,
+      total: data.meta.total,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getClient(id: number | string): Promise<Client> {
+  try {
+    const { data } = await client.get<{ client: Client }>(`/clients/${id}`);
+    return data.client;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function createClient(payload: ClientPayload): Promise<Client> {
+  try {
+    const { data } = await client.post<{ client: Client }>("/clients", payload);
+    return data.client;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function updateClient(id: number | string, payload: ClientPayload): Promise<Client> {
+  try {
+    const { data } = await client.patch<{ client: Client }>(`/clients/${id}`, payload);
+    return data.client;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function deleteClient(id: number | string): Promise<void> {
+  try {
+    await client.delete(`/clients/${id}`);
   } catch (error) {
     throw normalizeError(error);
   }

@@ -66,6 +66,25 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def client_response(client)
+    {
+      id: client.id,
+      tenant_id: client.tenant_id,
+      name: client.name,
+      kana: client.kana,
+      birth_date: client.birth_date,
+      gender: client.gender,
+      phone: client.phone,
+      address: client.address,
+      emergency_contact_name: client.emergency_contact_name,
+      emergency_contact_phone: client.emergency_contact_phone,
+      notes: client.notes,
+      status: client.status,
+      created_at: client.created_at,
+      updated_at: client.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end

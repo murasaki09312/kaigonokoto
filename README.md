@@ -72,6 +72,11 @@ bin/rails spec
 - `POST /users`
 - `GET /users/:id`
 - `PATCH /users/:id`
+- `GET /clients` (requires `clients:read`)
+- `POST /clients` (requires `clients:manage`)
+- `GET /clients/:id` (requires `clients:read`)
+- `PATCH /clients/:id` (requires `clients:manage`)
+- `DELETE /clients/:id` (requires `clients:manage`)
 
 エラー形式は統一しています。
 
@@ -122,10 +127,28 @@ curl -s -X POST http://localhost:3000/users \
   -d '{"name":"Created User","email":"created@example.com","password":"Password123!"}'
 ```
 
+### 5) Clients Index (supports `q` and `status`)
+
+```bash
+curl -s "http://localhost:3000/clients?q=山田&status=active" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### 6) Clients Create (requires `clients:manage`)
+
+```bash
+curl -s -X POST http://localhost:3000/clients \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"新規 利用者","kana":"シンキ リヨウシャ","phone":"090-1234-5678","status":"active"}'
+```
+
 ## RBAC Design
 
 - `Role` はグローバル
 - `Permission` はグローバル（例: `users:read`）
+- `Permission` はグローバル（例: `users:read`, `clients:manage`）
 - `User` は 1 tenant 所属
 - `UserRole`, `RolePermission` で多対多を構成
 - `User#allowed?(permission_key)` で権限判定
@@ -135,6 +158,10 @@ curl -s -X POST http://localhost:3000/users \
 - `UsersPolicy`
   - `index/show`: `users:read`
   - `create/update`: `users:manage`
+  - `Scope`: `user.tenant_id` で限定
+- `ClientPolicy`
+  - `index/show`: `clients:read`
+  - `create/update/destroy`: `clients:manage`
   - `Scope`: `user.tenant_id` で限定
 - `TenantsPolicy`
   - `index/create`: `tenants:manage`
@@ -165,6 +192,8 @@ token は `localStorage`（利用可能な環境）とメモリに保存し、`A
 
 - `/login`
 - `/app` (Dashboard)
+- `/app/clients` (一覧 + 作成/編集/削除)
+- `/app/clients/:id` (詳細)
 - `/app/users` (一覧 + 作成ダイアログ)
 
 ### Frontend Setup
@@ -185,9 +214,10 @@ npm run dev
 1. Rails を起動して `db:seed` 実行済みにする
 2. Frontend を `npm run dev` で起動する
 3. `demo-dayservice / admin@example.com / Password123!` でログインする
-4. `/app/users` でユーザー一覧が表示されることを確認する
-5. 「新規ユーザー」から作成できることを確認する
-6. `staff@example.com` でログインし、作成ボタンが無効表示になることを確認する
+4. `/app/clients` で利用者一覧が表示されることを確認する
+5. adminで利用者の作成/編集/削除ができることを確認する
+6. `staff@example.com` でログインし、利用者作成ボタンが無効表示になることを確認する
+7. `/app/users` でも staff の作成権限がないことを確認する
 
 ### CORS
 

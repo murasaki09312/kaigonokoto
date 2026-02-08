@@ -1,0 +1,110 @@
+import axios, { AxiosError } from "axios";
+import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
+
+export type ApiError = {
+  code: string;
+  message: string;
+  status?: number;
+};
+
+type ErrorPayload = {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+const TOKEN_KEY = "kaigonokoto.jwt";
+
+const client = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+client.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (!token) {
+    localStorage.removeItem(TOKEN_KEY);
+    return;
+  }
+
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function normalizeError(error: unknown): ApiError {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<ErrorPayload>;
+    return {
+      code: axiosError.response?.data?.error?.code ?? "request_failed",
+      message: axiosError.response?.data?.error?.message ?? axiosError.message,
+      status: axiosError.response?.status,
+    };
+  }
+
+  return {
+    code: "unexpected_error",
+    message: error instanceof Error ? error.message : "Unexpected error",
+  };
+}
+
+export async function login(payload: LoginPayload): Promise<LoginResponse> {
+  try {
+    const { data } = await client.post<LoginResponse>("/auth/login", payload);
+    return data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function me(): Promise<MeResponse> {
+  try {
+    const { data } = await client.get<MeResponse>("/auth/me");
+    return data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await client.post("/auth/logout");
+  } catch {
+    // Server side token invalidation is not used in MVP.
+  }
+}
+
+export async function listUsers(): Promise<User[]> {
+  try {
+    const { data } = await client.get<{ users: User[] }>("/users");
+    return data.users;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function createUser(payload: {
+  name?: string;
+  email: string;
+  password: string;
+}): Promise<User> {
+  try {
+    const { data } = await client.post<{ user: User }>("/users", payload);
+    return data.user;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}

@@ -7,4 +7,5 @@ Rails.application.routes.draw do
 
   resources :tenants, only: [:index, :create]
   resources :users, only: [:index, :create, :show, :update]
+  resources :clients, only: [:index, :show, :create, :update, :destroy]
 end

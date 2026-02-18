@@ -72,11 +72,14 @@ bin/rails spec
   - `clients:manage`
   - `contracts:read`
   - `contracts:manage`
+  - `reservations:read`
+  - `reservations:manage`
+  - `reservations:override_capacity`
   - `tenants:manage`
   - `system:audit_read`
 - Roles:
   - `admin`: 全 permission
-  - `staff`: `users:read` / `clients:read` / `contracts:read`
+  - `staff`: `users:read` / `clients:read` / `contracts:read` / `reservations:read`
 
 ## API Endpoints
 
@@ -98,6 +101,12 @@ bin/rails spec
 - `POST /clients/:client_id/contracts` (requires `contracts:manage`)
 - `GET /clients/:client_id/contracts/:id` (requires `contracts:read`)
 - `PATCH /clients/:client_id/contracts/:id` (requires `contracts:manage`)
+- `GET /reservations` (requires `reservations:read`)
+- `POST /reservations` (requires `reservations:manage`)
+- `POST /reservations/generate` (requires `reservations:manage`)
+- `GET /reservations/:id` (requires `reservations:read`)
+- `PATCH /reservations/:id` (requires `reservations:manage`)
+- `DELETE /reservations/:id` (requires `reservations:manage`)
 
 エラー形式は統一しています。
 
@@ -182,6 +191,32 @@ curl -s -X POST http://localhost:3000/clients/1/contracts \
   -d '{"start_on":"2026-03-01","weekdays":[1,3,5],"services":{"meal":true,"bath":false},"shuttle_required":true}'
 ```
 
+### 9) Reservations Index (requires `reservations:read`)
+
+```bash
+curl -s "http://localhost:3000/reservations?from=2026-03-01&to=2026-03-07" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### 10) Reservations Create (requires `reservations:manage`)
+
+```bash
+curl -s -X POST http://localhost:3000/reservations \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":1,"service_date":"2026-03-03","start_time":"09:30","end_time":"16:00"}'
+```
+
+### 11) Reservations Generate (requires `reservations:manage`)
+
+```bash
+curl -s -X POST http://localhost:3000/reservations/generate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":1,"start_on":"2026-03-01","end_on":"2026-03-31","weekdays":[1,3,5],"start_time":"09:30","end_time":"16:00"}'
+```
+
 ## RBAC Design
 
 - `Role` はグローバル
@@ -205,6 +240,11 @@ curl -s -X POST http://localhost:3000/clients/1/contracts \
 - `ContractPolicy`
   - `index/show`: `contracts:read`
   - `create/update`: `contracts:manage`
+  - `Scope`: `user.tenant_id` で限定
+- `ReservationPolicy`
+  - `index/show`: `reservations:read`
+  - `create/update/destroy/generate`: `reservations:manage`
+  - `override_capacity?`: `reservations:override_capacity` or `tenants:manage`
   - `Scope`: `user.tenant_id` で限定
 
 ## Tenant Isolation Policy
@@ -237,6 +277,7 @@ token は `localStorage`（利用可能な環境）とメモリに保存し、`A
 - `/app` (Dashboard)
 - `/app/clients` (一覧 + 作成/編集/削除)
 - `/app/clients/:id` (詳細 + 契約/利用プラン履歴 + 改定追加/編集)
+- `/app/reservations` (日/週表示 + 単発作成 + 繰り返し生成 + 定員表示)
 - `/app/users` (一覧 + 作成ダイアログ)
 
 ### Frontend Setup
@@ -261,7 +302,9 @@ npm run dev
 5. adminで利用者の作成/編集/削除ができることを確認する
 6. `/app/clients/:id` で契約履歴が表示され、admin が契約の作成/編集できることを確認する
 7. `staff@example.com` でログインし、契約の作成/編集ボタンが無効表示になることを確認する
-8. `/app/users` でも staff の作成権限がないことを確認する
+8. `/app/reservations` で日/週切替、単発作成、繰り返し生成、日別 `利用数/定員` 表示を確認する
+9. 定員到達日に通常作成すると `capacity_exceeded` となり、override権限ユーザーのみ force 作成できることを確認する
+10. `/app/users` でも staff の作成権限がないことを確認する
 
 ### CORS
 

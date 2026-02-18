@@ -7,6 +7,7 @@ import { DashboardPage } from "@/pages/dashboard-page";
 import { UsersPage } from "@/pages/users-page";
 import { ClientsPage } from "@/pages/clients-page";
 import { ClientDetailPage } from "@/pages/client-detail-page";
+import { ReservationsPage } from "@/pages/reservations-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
             <Route index element={<DashboardPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
+            <Route path="reservations" element={<ReservationsPage />} />
             <Route path="users" element={<UsersPage />} />
           </Route>
         </Route>

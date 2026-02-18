@@ -33,6 +33,10 @@ describe("resolvePostLoginPath", () => {
     expect(resolvePostLoginPath({ permissions: ["clients:read"] })).toBe("/app/clients");
   });
 
+  it("falls back to reservations when clients page is not allowed", () => {
+    expect(resolvePostLoginPath({ permissions: ["reservations:read"] })).toBe("/app/reservations");
+  });
+
   it("falls back to first accessible default path when operations is not allowed", () => {
     expect(resolvePostLoginPath({ permissions: ["users:read"] })).toBe("/app/users");
   });

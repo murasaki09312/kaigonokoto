@@ -2,11 +2,18 @@ import axios, { AxiosError } from "axios";
 import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
 import type { Client, ClientPayload, ClientStatus } from "@/types/client";
 import type { Contract, ContractPayload } from "@/types/contract";
+import type {
+  CapacityByDate,
+  Reservation,
+  ReservationGeneratePayload,
+  ReservationPayload,
+} from "@/types/reservation";
 
 export type ApiError = {
   code: string;
   message: string;
   status?: number;
+  conflicts?: string[];
 };
 
 type ErrorPayload = {
@@ -15,6 +22,7 @@ type ErrorPayload = {
     message?: string;
   };
   exception?: string;
+  conflicts?: string[];
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
@@ -72,6 +80,7 @@ function normalizeError(error: unknown): ApiError {
       code,
       message,
       status,
+      conflicts: responsePayload?.conflicts,
     };
   }
 
@@ -239,6 +248,93 @@ export async function updateContract(
   try {
     const { data } = await client.patch<{ contract: Contract }>(`/clients/${clientId}/contracts/${id}`, payload);
     return data.contract;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listReservations(params: {
+  from: string;
+  to: string;
+}): Promise<{
+  reservations: Reservation[];
+  total: number;
+  capacityByDate: CapacityByDate;
+}> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set("from", params.from);
+    searchParams.set("to", params.to);
+
+    const { data } = await client.get<{
+      reservations: Reservation[];
+      meta: {
+        total: number;
+        capacity_by_date: CapacityByDate;
+      };
+    }>(`/reservations?${searchParams.toString()}`);
+
+    return {
+      reservations: data.reservations,
+      total: data.meta.total,
+      capacityByDate: data.meta.capacity_by_date,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getReservation(id: number | string): Promise<Reservation> {
+  try {
+    const { data } = await client.get<{ reservation: Reservation }>(`/reservations/${id}`);
+    return data.reservation;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function createReservation(payload: ReservationPayload): Promise<Reservation> {
+  try {
+    const { data } = await client.post<{ reservation: Reservation }>("/reservations", payload);
+    return data.reservation;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function updateReservation(id: number | string, payload: ReservationPayload): Promise<Reservation> {
+  try {
+    const { data } = await client.patch<{ reservation: Reservation }>(`/reservations/${id}`, payload);
+    return data.reservation;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function deleteReservation(id: number | string): Promise<void> {
+  try {
+    await client.delete(`/reservations/${id}`);
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function generateReservations(payload: ReservationGeneratePayload): Promise<{
+  reservations: Reservation[];
+  total: number;
+  conflicts: string[];
+}> {
+  try {
+    const { data } = await client.post<{
+      reservations: Reservation[];
+      meta: { total: number; conflicts?: string[] };
+    }>("/reservations/generate", payload);
+
+    return {
+      reservations: data.reservations,
+      total: data.meta.total,
+      conflicts: data.meta.conflicts ?? [],
+    };
   } catch (error) {
     throw normalizeError(error);
   }

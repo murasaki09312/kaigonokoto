@@ -104,6 +104,22 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def reservation_response(reservation)
+    {
+      id: reservation.id,
+      tenant_id: reservation.tenant_id,
+      client_id: reservation.client_id,
+      client_name: reservation.client&.name,
+      service_date: reservation.service_date,
+      start_time: reservation.start_time&.strftime("%H:%M"),
+      end_time: reservation.end_time&.strftime("%H:%M"),
+      status: reservation.status,
+      notes: reservation.notes,
+      created_at: reservation.created_at,
+      updated_at: reservation.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end

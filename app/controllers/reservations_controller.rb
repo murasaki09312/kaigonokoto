@@ -30,41 +30,53 @@ class ReservationsController < ApplicationController
 
   def create
     authorize Reservation, :create?, policy_class: ReservationPolicy
-    client = current_tenant.clients.find(reservation_params.fetch(:client_id))
+    attrs = reservation_params.to_h.symbolize_keys
+    client = current_tenant.clients.find(attrs.fetch(:client_id))
+    force_requested = ActiveModel::Type::Boolean.new.cast(attrs.delete(:force))
+    status = resolve_status(attrs.delete(:status), default: "scheduled")
+    return if performed?
 
     reservation = current_tenant.reservations.new(
-      reservation_params.except(:force).merge(client: client)
+      attrs.merge(client: client, status: status)
     )
 
-    if scheduled_status?(reservation.status) && capacity_exceeded_on?(reservation.service_date) && !force_override_allowed?
-      return render_capacity_exceeded([reservation.service_date])
+    if scheduled_status?(status) && !force_override_allowed?(force_requested)
+      save_with_capacity_guard!(reservation)
+      return if performed?
+    else
+      return render_validation_error(reservation) unless reservation.save
     end
 
-    if reservation.save
-      render json: { reservation: reservation_response(reservation) }, status: :created
-    else
-      render_validation_error(reservation)
-    end
+    render json: { reservation: reservation_response(reservation) }, status: :created
+  rescue ActiveRecord::RecordInvalid => exception
+    render_validation_error(exception.record)
+  rescue ArgumentError => exception
+    render_invalid_status_error(exception)
   end
 
   def update
     authorize @reservation, :update?, policy_class: ReservationPolicy
-    attrs = reservation_params.except(:force)
+    attrs = reservation_params.to_h.symbolize_keys
+    force_requested = ActiveModel::Type::Boolean.new.cast(attrs.delete(:force))
     attrs[:client] = current_tenant.clients.find(attrs.delete(:client_id)) if attrs.key?(:client_id)
+    if attrs.key?(:status)
+      attrs[:status] = resolve_status(attrs[:status], default: nil)
+      return if performed?
+    end
 
     @reservation.assign_attributes(attrs)
+    next_status = @reservation.status
 
-    if scheduled_status?(@reservation.status) &&
-      capacity_exceeded_on?(@reservation.service_date, exclude_id: @reservation.id) &&
-      !force_override_allowed?
-      return render_capacity_exceeded([@reservation.service_date])
-    end
-
-    if @reservation.save
-      render json: { reservation: reservation_response(@reservation) }, status: :ok
+    if scheduled_status?(next_status) && !force_override_allowed?(force_requested)
+      save_with_capacity_guard!(@reservation, exclude_id: @reservation.id)
+      return if performed?
     else
-      render_validation_error(@reservation)
+      return render_validation_error(@reservation) unless @reservation.save
     end
+
+    render json: { reservation: reservation_response(@reservation) }, status: :ok
+  rescue ArgumentError => exception
+    render_invalid_status_error(exception)
   end
 
   def destroy
@@ -92,26 +104,42 @@ class ReservationsController < ApplicationController
       return render_error("validation_error", "No dates match the selected weekdays", :unprocessable_entity)
     end
 
-    target_status = generate_params[:status].presence || "scheduled"
-    conflicts = if scheduled_status?(target_status)
-      target_dates.select { |date| capacity_exceeded_on?(date) }
-    else
-      []
-    end
-    if conflicts.any? && !force_override_allowed?
-      return render_capacity_exceeded(conflicts)
-    end
+    force_requested = ActiveModel::Type::Boolean.new.cast(generate_params[:force])
+    target_status = resolve_status(generate_params[:status], default: "scheduled")
+    return if performed?
 
     reservations = []
-    ActiveRecord::Base.transaction do
-      target_dates.each do |date|
-        reservations << current_tenant.reservations.create!(
+    conflicts = []
+
+    if scheduled_status?(target_status) && !force_override_allowed?(force_requested)
+      ActiveRecord::Base.transaction do
+        with_capacity_lock!(target_dates) do
+          conflicts = target_dates.select { |date| capacity_exceeded_on?(date) }
+          if conflicts.any?
+            render_capacity_exceeded(conflicts)
+            raise ActiveRecord::Rollback
+          end
+
+          reservations = create_generated_reservations!(
+            dates: target_dates,
+            client: client,
+            status: target_status,
+            start_time: generate_params[:start_time],
+            end_time: generate_params[:end_time],
+            notes: generate_params[:notes]
+          )
+        end
+      end
+      return if performed?
+    else
+      ActiveRecord::Base.transaction do
+        reservations = create_generated_reservations!(
+          dates: target_dates,
           client: client,
-          service_date: date,
+          status: target_status,
           start_time: generate_params[:start_time],
           end_time: generate_params[:end_time],
-          notes: generate_params[:notes],
-          status: target_status
+          notes: generate_params[:notes]
         )
       end
     end
@@ -125,6 +153,8 @@ class ReservationsController < ApplicationController
     }, status: :created
   rescue ActiveRecord::RecordInvalid => exception
     render_validation_error(exception.record)
+  rescue ArgumentError => exception
+    render_invalid_status_error(exception)
   end
 
   private
@@ -188,10 +218,50 @@ class ReservationsController < ApplicationController
     status.to_s == "scheduled"
   end
 
-  def force_override_allowed?
-    return false unless ActiveModel::Type::Boolean.new.cast(params[:force])
+  def force_override_allowed?(force_requested)
+    return false unless force_requested
 
     ReservationPolicy.new(current_user, Reservation).override_capacity?
+  end
+
+  def with_capacity_lock!(dates)
+    Array(dates).uniq.sort.each do |date|
+      lock_key = date.strftime("%Y%m%d").to_i
+      ActiveRecord::Base.connection.execute(
+        "SELECT pg_advisory_xact_lock(#{current_tenant.id}, #{lock_key})"
+      )
+    end
+
+    yield
+  end
+
+  def save_with_capacity_guard!(reservation, exclude_id: nil)
+    ActiveRecord::Base.transaction do
+      with_capacity_lock!([reservation.service_date]) do
+        if capacity_exceeded_on?(reservation.service_date, exclude_id: exclude_id)
+          render_capacity_exceeded([reservation.service_date])
+          raise ActiveRecord::Rollback
+        end
+
+        unless reservation.save
+          render_validation_error(reservation)
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
+  end
+
+  def create_generated_reservations!(dates:, client:, status:, start_time:, end_time:, notes:)
+    dates.map do |date|
+      current_tenant.reservations.create!(
+        client: client,
+        service_date: date,
+        start_time: start_time,
+        end_time: end_time,
+        notes: notes,
+        status: status
+      )
+    end
   end
 
   def capacity_exceeded_on?(date, exclude_id: nil)
@@ -227,5 +297,24 @@ class ReservationsController < ApplicationController
       },
       conflicts: conflicts
     }, status: :unprocessable_entity
+  end
+
+  def resolve_status(raw_status, default:)
+    if raw_status.blank?
+      return default unless default.nil?
+
+      render_error("validation_error", "status is invalid", :unprocessable_entity)
+      return nil
+    end
+
+    status = raw_status.to_s
+    return status if Reservation.statuses.key?(status)
+
+    render_error("validation_error", "status is invalid", :unprocessable_entity)
+    nil
+  end
+
+  def render_invalid_status_error(_exception)
+    render_error("validation_error", "status is invalid", :unprocessable_entity)
   end
 end

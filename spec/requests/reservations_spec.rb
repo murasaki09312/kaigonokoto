@@ -1,30 +1,30 @@
 require "rails_helper"
 
 RSpec.describe "Reservations", type: :request do
-  let!(:reservations_read) { Permission.create!(key: "reservations:read") }
-  let!(:reservations_manage) { Permission.create!(key: "reservations:manage") }
-  let!(:reservations_override) { Permission.create!(key: "reservations:override_capacity") }
+  let!(:reservations_read) { Permission.find_or_create_by!(key: "reservations:read") }
+  let!(:reservations_manage) { Permission.find_or_create_by!(key: "reservations:manage") }
+  let!(:reservations_override) { Permission.find_or_create_by!(key: "reservations:override_capacity") }
 
   let!(:staff_role) do
-    role = Role.create!(name: "staff")
+    role = Role.find_or_create_by!(name: "staff_reservations_spec")
     role.permissions = [reservations_read]
     role
   end
 
   let!(:manager_role) do
-    role = Role.create!(name: "manager")
+    role = Role.find_or_create_by!(name: "manager_reservations_spec")
     role.permissions = [reservations_read, reservations_manage]
     role
   end
 
   let!(:admin_role) do
-    role = Role.create!(name: "admin")
+    role = Role.find_or_create_by!(name: "admin_reservations_spec")
     role.permissions = [reservations_read, reservations_manage, reservations_override]
     role
   end
 
-  let!(:tenant_a) { Tenant.create!(name: "Tenant A", slug: "tenant-a", capacity_per_day: 1) }
-  let!(:tenant_b) { Tenant.create!(name: "Tenant B", slug: "tenant-b", capacity_per_day: 10) }
+  let!(:tenant_a) { Tenant.create!(name: "Tenant A", slug: "tenant-a-#{SecureRandom.hex(4)}", capacity_per_day: 1) }
+  let!(:tenant_b) { Tenant.create!(name: "Tenant B", slug: "tenant-b-#{SecureRandom.hex(4)}", capacity_per_day: 10) }
 
   let!(:staff_user) do
     tenant_a.users.create!(
@@ -171,6 +171,41 @@ RSpec.describe "Reservations", type: :request do
 
       expect(response).to have_http_status(:created)
       expect(tenant_a.reservations.where(service_date: scheduled_date).count).to eq(2)
+    end
+  end
+
+  describe "status validation" do
+    it "returns 422 for invalid status on create" do
+      post "/reservations", params: {
+        client_id: tenant_a_client.id,
+        service_date: "2026-03-06",
+        status: "unknown"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+    end
+
+    it "returns 422 for invalid status on update" do
+      patch "/reservations/#{tenant_a_reservation.id}", params: {
+        status: "invalid-status"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+    end
+
+    it "returns 422 for invalid status on generate" do
+      post "/reservations/generate", params: {
+        client_id: tenant_a_client.id,
+        start_on: "2026-03-09",
+        end_on: "2026-03-16",
+        weekdays: [1],
+        status: "bad-status"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
     end
   end
 

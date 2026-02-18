@@ -13,6 +13,10 @@ describe("canAccessPath", () => {
   it("allows dashboard for any authenticated user", () => {
     expect(canAccessPath("/app", [])).toBe(true);
   });
+
+  it("rejects unknown app paths", () => {
+    expect(canAccessPath("/app/unknown", ["clients:read", "users:read"])).toBe(false);
+  });
 });
 
 describe("resolvePostLoginPath", () => {
@@ -60,5 +64,14 @@ describe("resolvePostLoginPath", () => {
         permissions: ["users:read"],
       }),
     ).toBe("/app/users");
+  });
+
+  it("falls back when requested app path is unknown", () => {
+    expect(
+      resolvePostLoginPath({
+        requestedPath: "/app/unknown",
+        permissions: ["clients:read"],
+      }),
+    ).toBe("/app/clients");
   });
 });

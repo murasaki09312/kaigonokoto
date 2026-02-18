@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -29,7 +30,12 @@ function isApiError(error: unknown): error is ApiError {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const token = getToken();
+  const [token, setTokenState] = useState<string | null>(() => getToken());
+
+  const persistToken = useCallback((nextToken: string | null) => {
+    setToken(nextToken);
+    setTokenState(nextToken);
+  }, []);
 
   const meQuery = useQuery({
     queryKey: ["auth", "me", token],
@@ -41,28 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return;
     if (isApiError(meQuery.error) && meQuery.error.status === 401) {
-      setToken(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- invalid token must be cleared immediately.
+      persistToken(null);
       queryClient.removeQueries({ queryKey: ["auth"] });
     }
-  }, [token, meQuery.error, queryClient]);
+  }, [token, meQuery.error, queryClient, persistToken]);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
       const response = await loginRequest(payload);
-      setToken(response.token);
+      persistToken(response.token);
       return queryClient.fetchQuery({
         queryKey: ["auth", "me", response.token],
         queryFn: me,
       });
     },
-    [queryClient],
+    [persistToken, queryClient],
   );
 
   const logout = useCallback(async () => {
     await logoutRequest();
-    setToken(null);
+    persistToken(null);
     queryClient.clear();
-  }, [queryClient]);
+  }, [persistToken, queryClient]);
 
   const value = useMemo<AuthContextValue>(() => {
     const meData = meQuery.data;

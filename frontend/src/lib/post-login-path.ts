@@ -9,7 +9,7 @@ type RouteAccessRule = {
 const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { pattern: /^\/app\/clients(?:\/|$)/, requiredPermissions: ["clients:read"] },
   { pattern: /^\/app\/users(?:\/|$)/, requiredPermissions: ["users:read"] },
-  { pattern: /^\/app(?:\/|$)/, requiredPermissions: [] },
+  { pattern: /^\/app\/?$/, requiredPermissions: [] },
 ];
 
 function extractPathname(path: string): string {

@@ -68,11 +68,15 @@ bin/rails spec
 - Permissions:
   - `users:read`
   - `users:manage`
+  - `clients:read`
+  - `clients:manage`
+  - `contracts:read`
+  - `contracts:manage`
   - `tenants:manage`
   - `system:audit_read`
 - Roles:
   - `admin`: 全 permission
-  - `staff`: `users:read` のみ
+  - `staff`: `users:read` / `clients:read` / `contracts:read`
 
 ## API Endpoints
 
@@ -90,6 +94,10 @@ bin/rails spec
 - `GET /clients/:id` (requires `clients:read`)
 - `PATCH /clients/:id` (requires `clients:manage`)
 - `DELETE /clients/:id` (requires `clients:manage`)
+- `GET /clients/:client_id/contracts` (requires `contracts:read`)
+- `POST /clients/:client_id/contracts` (requires `contracts:manage`)
+- `GET /clients/:client_id/contracts/:id` (requires `contracts:read`)
+- `PATCH /clients/:client_id/contracts/:id` (requires `contracts:manage`)
 
 エラー形式は統一しています。
 
@@ -157,11 +165,27 @@ curl -s -X POST http://localhost:3000/clients \
   -d '{"name":"新規 利用者","kana":"シンキ リヨウシャ","phone":"090-1234-5678","status":"active"}'
 ```
 
+### 7) Contracts Index (requires `contracts:read`)
+
+```bash
+curl -s "http://localhost:3000/clients/1/contracts?as_of=2026-02-01" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### 8) Contracts Create (requires `contracts:manage`)
+
+```bash
+curl -s -X POST http://localhost:3000/clients/1/contracts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"start_on":"2026-03-01","weekdays":[1,3,5],"services":{"meal":true,"bath":false},"shuttle_required":true}'
+```
+
 ## RBAC Design
 
 - `Role` はグローバル
 - `Permission` はグローバル（例: `users:read`）
-- `Permission` はグローバル（例: `users:read`, `clients:manage`）
 - `User` は 1 tenant 所属
 - `UserRole`, `RolePermission` で多対多を構成
 - `User#allowed?(permission_key)` で権限判定
@@ -178,6 +202,10 @@ curl -s -X POST http://localhost:3000/clients \
   - `Scope`: `user.tenant_id` で限定
 - `TenantsPolicy`
   - `index/create`: `tenants:manage`
+- `ContractPolicy`
+  - `index/show`: `contracts:read`
+  - `create/update`: `contracts:manage`
+  - `Scope`: `user.tenant_id` で限定
 
 ## Tenant Isolation Policy
 
@@ -187,6 +215,8 @@ curl -s -X POST http://localhost:3000/clients \
 - `UsersController#show/update` は必ず `current_tenant.users.find(params[:id])`
   - 他テナントIDを指定しても `404 Not Found`
 - `UsersController#index` は `policy_scope(User)` で current tenant のみ返却
+- `ContractsController` は `current_tenant.clients.find(params[:client_id])` と
+  `current_tenant.contracts.find_by!(id:, client_id:)` を使い、他テナント参照は `404`
 
 ## TypeScript Client
 
@@ -206,7 +236,7 @@ token は `localStorage`（利用可能な環境）とメモリに保存し、`A
 - `/login`
 - `/app` (Dashboard)
 - `/app/clients` (一覧 + 作成/編集/削除)
-- `/app/clients/:id` (詳細)
+- `/app/clients/:id` (詳細 + 契約/利用プラン履歴 + 改定追加/編集)
 - `/app/users` (一覧 + 作成ダイアログ)
 
 ### Frontend Setup
@@ -229,8 +259,9 @@ npm run dev
 3. `demo-dayservice / admin@example.com / Password123!` でログインする
 4. `/app/clients` で利用者一覧が表示されることを確認する
 5. adminで利用者の作成/編集/削除ができることを確認する
-6. `staff@example.com` でログインし、利用者作成ボタンが無効表示になることを確認する
-7. `/app/users` でも staff の作成権限がないことを確認する
+6. `/app/clients/:id` で契約履歴が表示され、admin が契約の作成/編集できることを確認する
+7. `staff@example.com` でログインし、契約の作成/編集ボタンが無効表示になることを確認する
+8. `/app/users` でも staff の作成権限がないことを確認する
 
 ### CORS
 

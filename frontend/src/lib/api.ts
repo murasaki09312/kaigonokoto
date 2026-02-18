@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
 import type { Client, ClientPayload, ClientStatus } from "@/types/client";
+import type { Contract, ContractPayload } from "@/types/contract";
 
 export type ApiError = {
   code: string;
@@ -50,11 +51,16 @@ export function setToken(token: string | null): void {
 function normalizeError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ErrorPayload>;
-    const code = axiosError.response?.data?.error?.code ?? "request_failed";
     const status = axiosError.response?.status;
+    const responseData = axiosError.response?.data;
+    const responsePayload =
+      typeof responseData === "object" && responseData !== null
+        ? (responseData as ErrorPayload)
+        : undefined;
+    const code = responsePayload?.error?.code ?? "request_failed";
 
-    let message = axiosError.response?.data?.error?.message ?? axiosError.message;
-    const exception = axiosError.response?.data?.exception ?? "";
+    let message = responsePayload?.error?.message ?? axiosError.message;
+    const exception = typeof responseData === "string" ? responseData : responsePayload?.exception ?? "";
     const hasDatabaseConnectionError =
       exception.includes("ConnectionNotEstablished") || exception.includes("PG::ConnectionBad");
 
@@ -176,6 +182,63 @@ export async function updateClient(id: number | string, payload: ClientPayload):
 export async function deleteClient(id: number | string): Promise<void> {
   try {
     await client.delete(`/clients/${id}`);
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listContracts(
+  clientId: number | string,
+  params?: { as_of?: string },
+): Promise<{ contracts: Contract[]; total: number; currentContractId: number | null }> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.as_of) searchParams.set("as_of", params.as_of);
+
+    const query = searchParams.toString();
+    const path = query.length > 0 ? `/clients/${clientId}/contracts?${query}` : `/clients/${clientId}/contracts`;
+
+    const { data } = await client.get<{
+      contracts: Contract[];
+      meta: { total: number; current_contract_id?: number | null };
+    }>(path);
+
+    return {
+      contracts: data.contracts,
+      total: data.meta.total,
+      currentContractId: data.meta.current_contract_id ?? null,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getContract(clientId: number | string, id: number | string): Promise<Contract> {
+  try {
+    const { data } = await client.get<{ contract: Contract }>(`/clients/${clientId}/contracts/${id}`);
+    return data.contract;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function createContract(clientId: number | string, payload: ContractPayload): Promise<Contract> {
+  try {
+    const { data } = await client.post<{ contract: Contract }>(`/clients/${clientId}/contracts`, payload);
+    return data.contract;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function updateContract(
+  clientId: number | string,
+  id: number | string,
+  payload: ContractPayload,
+): Promise<Contract> {
+  try {
+    const { data } = await client.patch<{ contract: Contract }>(`/clients/${clientId}/contracts/${id}`, payload);
+    return data.contract;
   } catch (error) {
     throw normalizeError(error);
   }

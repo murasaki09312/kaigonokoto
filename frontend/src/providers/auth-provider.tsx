@@ -9,7 +9,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { login as loginRequest, logout as logoutRequest, me, setToken, getToken } from "@/lib/api";
 import type { ApiError } from "@/lib/api";
-import type { LoginPayload, User } from "@/types/auth";
+import type { LoginPayload, MeResponse, User } from "@/types/auth";
 
 type AuthContextValue = {
   token: string | null;
@@ -17,7 +17,7 @@ type AuthContextValue = {
   permissions: string[];
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<MeResponse>;
   logout: () => Promise<void>;
 };
 
@@ -50,7 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (payload: LoginPayload) => {
       const response = await loginRequest(payload);
       setToken(response.token);
-      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      return queryClient.fetchQuery({
+        queryKey: ["auth", "me", response.token],
+        queryFn: me,
+      });
     },
     [queryClient],
   );

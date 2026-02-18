@@ -6,6 +6,8 @@ class ApplicationController < ActionController::API
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
+  rescue_from ActiveRecord::ConnectionNotEstablished, with: :render_database_unavailable
+  rescue_from PG::ConnectionBad, with: :render_database_unavailable if defined?(PG::ConnectionBad)
 
   private
 
@@ -85,6 +87,23 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def contract_response(contract)
+    {
+      id: contract.id,
+      tenant_id: contract.tenant_id,
+      client_id: contract.client_id,
+      start_on: contract.start_on,
+      end_on: contract.end_on,
+      weekdays: contract.weekdays,
+      services: contract.services,
+      service_note: contract.service_note,
+      shuttle_required: contract.shuttle_required,
+      shuttle_note: contract.shuttle_note,
+      created_at: contract.created_at,
+      updated_at: contract.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end
@@ -99,6 +118,10 @@ class ApplicationController < ActionController::API
 
   def render_bad_request(exception)
     render_error("bad_request", exception.message, :bad_request)
+  end
+
+  def render_database_unavailable(_exception)
+    render_error("database_unavailable", "Database is unavailable", :service_unavailable)
   end
 
   def render_error(code, message, status)

@@ -10,6 +10,9 @@ permission_keys = [
   "clients:manage",
   "contracts:read",
   "contracts:manage",
+  "reservations:read",
+  "reservations:manage",
+  "reservations:override_capacity",
   "tenants:manage",
   "system:audit_read"
 ]
@@ -25,7 +28,8 @@ admin_role.permissions = permissions.values
 staff_role.permissions = [
   permissions.fetch("users:read"),
   permissions.fetch("clients:read"),
-  permissions.fetch("contracts:read")
+  permissions.fetch("contracts:read"),
+  permissions.fetch("reservations:read")
 ]
 
 admin_user = tenant.users.find_or_initialize_by(email: "admin@example.com")
@@ -86,3 +90,17 @@ contract_v2.assign_attributes(
   shuttle_note: nil
 )
 contract_v2.save!
+
+tenant.update!(capacity_per_day: 25) if tenant.capacity_per_day != 25
+
+sample_dates = [Date.current, Date.current + 1.day]
+sample_dates.each_with_index do |service_date, index|
+  reservation = tenant.reservations.find_or_initialize_by(client_id: sample_client.id, service_date: service_date)
+  reservation.assign_attributes(
+    start_time: "09:30",
+    end_time: "16:00",
+    status: :scheduled,
+    notes: index.zero? ? "定期利用サンプル" : "翌日利用サンプル"
+  )
+  reservation.save!
+end

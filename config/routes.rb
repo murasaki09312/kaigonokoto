@@ -10,4 +10,9 @@ Rails.application.routes.draw do
   resources :clients, only: [:index, :show, :create, :update, :destroy] do
     resources :contracts, only: [:index, :show, :create, :update]
   end
+  resources :reservations, only: [:index, :show, :create, :update, :destroy] do
+    collection do
+      post :generate
+    end
+  end
 end

@@ -30,8 +30,9 @@ class ReservationsController < ApplicationController
 
   def create
     authorize Reservation, :create?, policy_class: ReservationPolicy
+    client_id = reservation_params.fetch(:client_id)
     attrs = reservation_params.to_h.symbolize_keys
-    client = current_tenant.clients.find(attrs.fetch(:client_id))
+    client = current_tenant.clients.find(client_id)
     force_requested = ActiveModel::Type::Boolean.new.cast(attrs.delete(:force))
     status = resolve_status(attrs.delete(:status), default: "scheduled")
     return if performed?
@@ -236,6 +237,11 @@ class ReservationsController < ApplicationController
   end
 
   def save_with_capacity_guard!(reservation, exclude_id: nil)
+    unless reservation.valid?
+      render_validation_error(reservation)
+      return
+    end
+
     ActiveRecord::Base.transaction do
       with_capacity_lock!([reservation.service_date]) do
         if capacity_exceeded_on?(reservation.service_date, exclude_id: exclude_id)

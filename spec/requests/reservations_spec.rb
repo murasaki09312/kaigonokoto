@@ -172,6 +172,36 @@ RSpec.describe "Reservations", type: :request do
       expect(response).to have_http_status(:created)
       expect(tenant_a.reservations.where(service_date: scheduled_date).count).to eq(2)
     end
+
+    it "rejects second request after same-day lock is released" do
+      lock_key = scheduled_date.strftime("%Y%m%d").to_i
+      lock_connection = ActiveRecord::Base.connection_pool.checkout
+
+      begin
+        lock_connection.transaction do
+          lock_connection.execute("SELECT pg_advisory_xact_lock(#{tenant_a.id}, #{lock_key})")
+
+          post "/reservations", params: {
+            client_id: tenant_a_client.id,
+            service_date: scheduled_date.to_s,
+            force: true
+          }, as: :json, headers: auth_headers_for(admin_user)
+
+          expect(response).to have_http_status(:created)
+          expect(tenant_a.reservations.where(service_date: scheduled_date).count).to eq(2)
+        end
+      ensure
+        ActiveRecord::Base.connection_pool.checkin(lock_connection)
+      end
+
+      post "/reservations", params: {
+        client_id: tenant_a_client.id,
+        service_date: scheduled_date.to_s
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("capacity_exceeded")
+    end
   end
 
   describe "status validation" do
@@ -202,6 +232,28 @@ RSpec.describe "Reservations", type: :request do
         end_on: "2026-03-16",
         weekdays: [1],
         status: "bad-status"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+    end
+  end
+
+  describe "required parameters" do
+    it "returns 400 when client_id is missing" do
+      post "/reservations", params: {
+        service_date: "2026-03-06",
+        status: "scheduled"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:bad_request)
+      expect(json_body.dig("error", "code")).to eq("bad_request")
+    end
+
+    it "returns 422 when service_date is missing for scheduled reservation" do
+      post "/reservations", params: {
+        client_id: tenant_a_client.id,
+        status: "scheduled"
       }, as: :json, headers: auth_headers_for(manager_user)
 
       expect(response).to have_http_status(:unprocessable_entity)

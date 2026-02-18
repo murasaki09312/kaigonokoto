@@ -130,6 +130,25 @@ RSpec.describe "Contracts", type: :request do
       expect(json_body.dig("contract", "client_id")).to eq(tenant_a_client.id)
       expect(json_body.dig("contract", "start_on")).to eq("2026-03-01")
     end
+
+    it "allows admin to clear optional fields on update" do
+      tenant_a_contract.update!(
+        end_on: Date.new(2026, 2, 28),
+        service_note: "一時メモ",
+        shuttle_note: "往復送迎"
+      )
+
+      patch "/clients/#{tenant_a_client.id}/contracts/#{tenant_a_contract.id}", params: {
+        end_on: nil,
+        service_note: nil,
+        shuttle_note: nil
+      }, as: :json, headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(tenant_a_contract.reload.end_on).to be_nil
+      expect(tenant_a_contract.service_note).to be_nil
+      expect(tenant_a_contract.shuttle_note).to be_nil
+    end
   end
 
   describe "tenant isolation" do

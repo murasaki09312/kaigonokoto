@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_18_133000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_18_235500) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
 
   create_table "clients", force: :cascade do |t|
@@ -49,6 +50,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_133000) do
     t.index ["tenant_id", "client_id", "end_on"], name: "index_contracts_on_tenant_id_and_client_id_and_end_on"
     t.index ["tenant_id", "client_id", "start_on"], name: "index_contracts_on_tenant_id_and_client_id_and_start_on"
     t.index ["tenant_id"], name: "index_contracts_on_tenant_id"
+    t.exclusion_constraint "tenant_id WITH =, client_id WITH =, daterange(start_on, COALESCE((end_on + 1), 'infinity'::date), '[)'::text) WITH &&", using: :gist, name: "contracts_no_overlapping_periods"
   end
 
   create_table "permissions", force: :cascade do |t|

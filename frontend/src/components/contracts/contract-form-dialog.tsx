@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createContract, updateContract } from "@/lib/api";
 import type { Contract, ContractPayload, ContractServices } from "@/types/contract";
 import { SERVICE_OPTIONS, WEEKDAY_OPTIONS } from "@/components/contracts/contract-constants";
+import { buildContractPayload } from "@/components/contracts/contract-form-payload";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,15 +66,7 @@ function toDefaultValues(contract?: Contract): FormValues {
 }
 
 function toPayload(values: FormValues): ContractPayload {
-  return {
-    start_on: values.start_on,
-    end_on: values.end_on || undefined,
-    weekdays: values.weekdays,
-    services: values.services,
-    service_note: values.service_note || undefined,
-    shuttle_required: values.shuttle_required,
-    shuttle_note: values.shuttle_note || undefined,
-  };
+  return buildContractPayload(values);
 }
 
 export function ContractFormDialog({
@@ -96,6 +89,21 @@ export function ContractFormDialog({
     form.reset(initialValues);
   }, [form, initialValues]);
 
+  const closeDialog = useCallback(() => {
+    setOpen(false);
+    form.reset(initialValues);
+  }, [form, initialValues]);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) {
+        form.reset(initialValues);
+      }
+    },
+    [form, initialValues],
+  );
+
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const payload = toPayload(values);
@@ -107,7 +115,7 @@ export function ContractFormDialog({
     },
     onSuccess: async () => {
       toast.success(mode === "create" ? "契約を作成しました" : "契約を更新しました");
-      setOpen(false);
+      closeDialog();
       await queryClient.invalidateQueries({ queryKey: ["contracts", clientId] });
     },
     onError: (error) => {
@@ -130,7 +138,7 @@ export function ContractFormDialog({
   const title = mode === "create" ? "契約/利用プランの新規作成" : "契約/利用プランの編集";
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           className="rounded-xl"
@@ -246,7 +254,7 @@ export function ContractFormDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={closeDialog}>
               キャンセル
             </Button>
             <Button type="submit" className="rounded-xl" disabled={mutation.isPending}>

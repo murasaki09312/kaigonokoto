@@ -17,10 +17,10 @@ export type Contract = {
 
 export type ContractPayload = {
   start_on: string;
-  end_on?: string;
+  end_on: string | null;
   weekdays: number[];
   services: ContractServices;
-  service_note?: string;
+  service_note: string | null;
   shuttle_required: boolean;
-  shuttle_note?: string;
+  shuttle_note: string | null;
 };

@@ -35,6 +35,10 @@ class ContractsController < ApplicationController
     render json: { contract: contract_response(contract) }, status: :created
   rescue ActiveRecord::RecordInvalid => exception
     render_validation_error(exception.record)
+  rescue ActiveRecord::StatementInvalid => exception
+    return render_period_overlap_error if overlap_constraint_violation?(exception)
+
+    raise
   end
 
   def update
@@ -45,6 +49,10 @@ class ContractsController < ApplicationController
     else
       render_validation_error(@contract)
     end
+  rescue ActiveRecord::StatementInvalid => exception
+    return render_period_overlap_error if overlap_constraint_violation?(exception)
+
+    raise
   end
 
   private
@@ -100,5 +108,17 @@ class ContractsController < ApplicationController
       as_of: as_of,
       current_contract_id: current_contract&.id
     )
+  end
+
+  def overlap_constraint_violation?(exception)
+    cause = exception.cause
+    return false if cause.blank?
+
+    is_exclusion_violation = defined?(PG::ExclusionViolation) && cause.is_a?(PG::ExclusionViolation)
+    is_exclusion_violation || cause.message.include?("contracts_no_overlapping_periods")
+  end
+
+  def render_period_overlap_error
+    render_error("validation_error", "Contract period overlaps with existing contracts", :unprocessable_entity)
   end
 end

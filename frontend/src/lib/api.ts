@@ -13,6 +13,7 @@ type ErrorPayload = {
     code?: string;
     message?: string;
   };
+  exception?: string;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
@@ -49,10 +50,22 @@ export function setToken(token: string | null): void {
 function normalizeError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ErrorPayload>;
+    const code = axiosError.response?.data?.error?.code ?? "request_failed";
+    const status = axiosError.response?.status;
+
+    let message = axiosError.response?.data?.error?.message ?? axiosError.message;
+    const exception = axiosError.response?.data?.exception ?? "";
+    const hasDatabaseConnectionError =
+      exception.includes("ConnectionNotEstablished") || exception.includes("PG::ConnectionBad");
+
+    if (code === "database_unavailable" || status === 503 || (status === 500 && hasDatabaseConnectionError)) {
+      message = "データベースに接続できません。PostgreSQL を起動して再試行してください。";
+    }
+
     return {
-      code: axiosError.response?.data?.error?.code ?? "request_failed",
-      message: axiosError.response?.data?.error?.message ?? axiosError.message,
-      status: axiosError.response?.status,
+      code,
+      message,
+      status,
     };
   }
 

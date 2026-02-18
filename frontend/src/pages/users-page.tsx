@@ -16,14 +16,18 @@ import {
 export function UsersPage() {
   const [search, setSearch] = useState("");
   const { permissions } = useAuth();
+  const canReadUsers = permissions.includes("users:read");
   const canManageUsers = permissions.includes("users:manage");
 
   const usersQuery = useQuery({
     queryKey: ["users"],
     queryFn: listUsers,
+    enabled: canReadUsers,
   });
 
   const filteredUsers = useMemo(() => {
+    if (!canReadUsers) return [];
+
     const normalized = search.trim().toLowerCase();
     if (!normalized) return usersQuery.data ?? [];
 
@@ -33,7 +37,18 @@ export function UsersPage() {
         (user.name ?? "").toLowerCase().includes(normalized)
       );
     });
-  }, [usersQuery.data, search]);
+  }, [canReadUsers, usersQuery.data, search]);
+
+  if (!canReadUsers) {
+    return (
+      <Card className="rounded-2xl border-border/70 shadow-sm">
+        <CardContent className="p-10 text-center">
+          <p className="font-medium">権限がありません</p>
+          <p className="mt-1 text-sm text-muted-foreground">users:read 権限を持つユーザーでログインしてください。</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

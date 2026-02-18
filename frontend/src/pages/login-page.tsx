@@ -2,9 +2,10 @@ import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
+import { resolvePostLoginPath } from "@/lib/post-login-path";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,13 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+type LoginLocationState = {
+  from?: string;
+};
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,9 +39,15 @@ export function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      await login(values);
+      const auth = await login(values);
       toast.success("ログインしました");
-      navigate("/app", { replace: true });
+      navigate(
+        resolvePostLoginPath({
+          requestedPath: (location.state as LoginLocationState | null)?.from,
+          permissions: auth.permissions,
+        }),
+        { replace: true },
+      );
     } catch (error) {
       const message =
         typeof error === "object" && error !== null && "message" in error

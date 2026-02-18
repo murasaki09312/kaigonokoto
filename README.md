@@ -37,6 +37,19 @@ export PGUSER=postgres
 export PGPASSWORD=postgres
 ```
 
+### Troubleshooting: 500 on login
+
+If `POST /auth/login` returns `500` and `log/development.log` shows
+`ActiveRecord::ConnectionNotEstablished` or `PG::ConnectionBad`, PostgreSQL is not reachable.
+
+1. Start PostgreSQL (local service or Docker).
+2. Set DB env vars when using Docker:
+   - `PGHOST=127.0.0.1`
+   - `PGUSER=postgres`
+   - `PGPASSWORD=postgres`
+3. Run:
+   - `bin/rails db:create db:migrate db:seed`
+
 別ターミナルでテスト:
 
 ```bash

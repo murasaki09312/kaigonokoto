@@ -8,6 +8,8 @@ permission_keys = [
   "users:manage",
   "clients:read",
   "clients:manage",
+  "contracts:read",
+  "contracts:manage",
   "tenants:manage",
   "system:audit_read"
 ]
@@ -22,7 +24,8 @@ staff_role = Role.find_or_create_by!(name: "staff")
 admin_role.permissions = permissions.values
 staff_role.permissions = [
   permissions.fetch("users:read"),
-  permissions.fetch("clients:read")
+  permissions.fetch("clients:read"),
+  permissions.fetch("contracts:read")
 ]
 
 admin_user = tenant.users.find_or_initialize_by(email: "admin@example.com")
@@ -59,3 +62,27 @@ tenant.clients.find_or_create_by!(name: "佐藤 花子") do |client|
   client.status = :inactive
   client.notes = "休止中サンプル"
 end
+
+sample_client = tenant.clients.find_by!(name: "山田 太郎")
+
+contract_v1 = tenant.contracts.find_or_initialize_by(client_id: sample_client.id, start_on: Date.new(2025, 10, 1))
+contract_v1.assign_attributes(
+  end_on: Date.new(2025, 12, 31),
+  weekdays: [1, 3, 5],
+  services: { "meal" => true, "bath" => true, "rehabilitation" => false, "recreation" => true },
+  service_note: "初期契約サンプル",
+  shuttle_required: true,
+  shuttle_note: "朝のみ送迎"
+)
+contract_v1.save!
+
+contract_v2 = tenant.contracts.find_or_initialize_by(client_id: sample_client.id, start_on: Date.new(2026, 1, 1))
+contract_v2.assign_attributes(
+  end_on: nil,
+  weekdays: [1, 2, 4],
+  services: { "meal" => true, "bath" => false, "rehabilitation" => true, "recreation" => true },
+  service_note: "冬季改定サンプル",
+  shuttle_required: false,
+  shuttle_note: nil
+)
+contract_v2.save!

@@ -35,13 +35,18 @@ export type ReservationPayload = {
 };
 
 export type ReservationGeneratePayload = {
-  client_id: number;
   start_on: string;
   end_on: string;
-  weekdays: number[];
   start_time?: string | null;
   end_time?: string | null;
   status?: ReservationStatus;
   notes?: string | null;
   force?: boolean;
+};
+
+export type ReservationGenerateResult = {
+  reservations: Reservation[];
+  total: number;
+  capacitySkippedDates: string[];
+  existingSkippedTotal: number;
 };

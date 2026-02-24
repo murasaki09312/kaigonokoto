@@ -5,6 +5,7 @@ import type { Contract, ContractPayload } from "@/types/contract";
 import type {
   CapacityByDate,
   Reservation,
+  ReservationGenerateResult,
   ReservationGeneratePayload,
   ReservationPayload,
 } from "@/types/reservation";
@@ -319,21 +320,18 @@ export async function deleteReservation(id: number | string): Promise<void> {
   }
 }
 
-export async function generateReservations(payload: ReservationGeneratePayload): Promise<{
-  reservations: Reservation[];
-  total: number;
-  conflicts: string[];
-}> {
+export async function generateReservations(payload: ReservationGeneratePayload): Promise<ReservationGenerateResult> {
   try {
     const { data } = await client.post<{
       reservations: Reservation[];
-      meta: { total: number; conflicts?: string[] };
-    }>("/reservations/generate", payload);
+      meta: { total: number; capacity_skipped_dates?: string[]; existing_skipped_total?: number };
+    }>("/api/v1/reservations/generate", payload);
 
     return {
       reservations: data.reservations,
       total: data.meta.total,
-      conflicts: data.meta.conflicts ?? [],
+      capacitySkippedDates: data.meta.capacity_skipped_dates ?? [],
+      existingSkippedTotal: data.meta.existing_skipped_total ?? 0,
     };
   } catch (error) {
     throw normalizeError(error);

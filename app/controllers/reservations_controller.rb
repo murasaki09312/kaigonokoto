@@ -89,67 +89,35 @@ class ReservationsController < ApplicationController
 
   def generate
     authorize Reservation, :generate?, policy_class: ReservationPolicy
-    client = current_tenant.clients.find(generate_params.fetch(:client_id))
     start_on = parse_iso_date(generate_params.fetch(:start_on), "start_on")
     end_on = parse_iso_date(generate_params.fetch(:end_on), "end_on")
     return if performed?
 
-    weekdays = normalize_weekdays(generate_params[:weekdays])
-    return if performed?
     if end_on < start_on
       return render_error("validation_error", "end_on must be on or after start_on", :unprocessable_entity)
-    end
-
-    target_dates = (start_on..end_on).select { |date| weekdays.include?(date.wday) }
-    if target_dates.empty?
-      return render_error("validation_error", "No dates match the selected weekdays", :unprocessable_entity)
     end
 
     force_requested = ActiveModel::Type::Boolean.new.cast(generate_params[:force])
     target_status = resolve_status(generate_params[:status], default: "scheduled")
     return if performed?
 
-    reservations = []
-    conflicts = []
-
-    if scheduled_status?(target_status) && !force_override_allowed?(force_requested)
-      ActiveRecord::Base.transaction do
-        with_capacity_lock!(target_dates) do
-          conflicts = target_dates.select { |date| capacity_exceeded_on?(date) }
-          if conflicts.any?
-            render_capacity_exceeded(conflicts)
-            raise ActiveRecord::Rollback
-          end
-
-          reservations = create_generated_reservations!(
-            dates: target_dates,
-            client: client,
-            status: target_status,
-            start_time: generate_params[:start_time],
-            end_time: generate_params[:end_time],
-            notes: generate_params[:notes]
-          )
-        end
-      end
-      return if performed?
-    else
-      ActiveRecord::Base.transaction do
-        reservations = create_generated_reservations!(
-          dates: target_dates,
-          client: client,
-          status: target_status,
-          start_time: generate_params[:start_time],
-          end_time: generate_params[:end_time],
-          notes: generate_params[:notes]
-        )
-      end
-    end
+    result = ReservationGeneratorService.new(
+      tenant: current_tenant,
+      start_on: start_on,
+      end_on: end_on,
+      start_time: generate_params[:start_time],
+      end_time: generate_params[:end_time],
+      notes: generate_params[:notes],
+      status: target_status,
+      force: force_override_allowed?(force_requested)
+    ).call
 
     render json: {
-      reservations: reservations.map { |reservation| reservation_response(reservation) },
+      reservations: result.reservations.map { |reservation| reservation_response(reservation) },
       meta: {
-        total: reservations.size,
-        conflicts: conflicts
+        total: result.reservations.size,
+        capacity_skipped_dates: result.capacity_skipped_dates,
+        existing_skipped_total: result.existing_skipped_total
       }
     }, status: :created
   rescue ActiveRecord::RecordInvalid => exception
@@ -178,15 +146,13 @@ class ReservationsController < ApplicationController
 
   def generate_params
     params.permit(
-      :client_id,
       :start_on,
       :end_on,
       :start_time,
       :end_time,
       :status,
       :notes,
-      :force,
-      weekdays: []
+      :force
     )
   end
 
@@ -205,14 +171,6 @@ class ReservationsController < ApplicationController
   rescue ArgumentError
     render_error("bad_request", "#{field_name} must be ISO date (YYYY-MM-DD)", :bad_request)
     nil
-  end
-
-  def normalize_weekdays(raw_weekdays)
-    weekdays = Array(raw_weekdays).filter_map { |value| Integer(value, exception: false) }.uniq.sort
-    return weekdays if weekdays.present? && weekdays.all? { |weekday| weekday.between?(0, 6) }
-
-    render_error("validation_error", "weekdays must include values between 0 and 6", :unprocessable_entity)
-    []
   end
 
   def scheduled_status?(status)
@@ -254,19 +212,6 @@ class ReservationsController < ApplicationController
           raise ActiveRecord::Rollback
         end
       end
-    end
-  end
-
-  def create_generated_reservations!(dates:, client:, status:, start_time:, end_time:, notes:)
-    dates.map do |date|
-      current_tenant.reservations.create!(
-        client: client,
-        service_date: date,
-        start_time: start_time,
-        end_time: end_time,
-        notes: notes,
-        status: status
-      )
     end
   end
 

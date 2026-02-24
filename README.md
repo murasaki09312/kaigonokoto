@@ -104,6 +104,7 @@ bin/rails spec
 - `GET /reservations` (requires `reservations:read`)
 - `POST /reservations` (requires `reservations:manage`)
 - `POST /reservations/generate` (requires `reservations:manage`)
+- `POST /api/v1/reservations/generate` (requires `reservations:manage`, alias)
 - `GET /reservations/:id` (requires `reservations:read`)
 - `PATCH /reservations/:id` (requires `reservations:manage`)
 - `DELETE /reservations/:id` (requires `reservations:manage`)
@@ -214,8 +215,13 @@ curl -s -X POST http://localhost:3000/reservations \
 curl -s -X POST http://localhost:3000/reservations/generate \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"client_id":1,"start_on":"2026-03-01","end_on":"2026-03-31","weekdays":[1,3,5],"start_time":"09:30","end_time":"16:00"}'
+  -d '{"start_on":"2026-03-01","end_on":"2026-03-31","start_time":"09:30","end_time":"16:00"}'
 ```
+
+`generate` は指定期間に有効な契約（`contracts.weekdays`）を参照して、対象利用者の予約を一括生成します。
+- 既存予約がある利用者/日付はスキップ
+- 定員超過日はベストエフォートでスキップし、`meta.capacity_skipped_dates` に返却
+- 管理者が `force=true` を指定した場合のみ定員超過日も作成
 
 ## RBAC Design
 

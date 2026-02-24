@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   post "/auth/login", to: "auth#login"
   get "/auth/me", to: "auth#me"
   post "/auth/logout", to: "auth#logout"
+  post "/api/v1/reservations/generate", to: "reservations#generate"
 
   resources :tenants, only: [:index, :create]
   resources :users, only: [:index, :create, :show, :update]

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createReservation, updateReservation, type ApiError } from "@/lib/api";
 import type { Client } from "@/types/client";
 import type { Reservation, ReservationPayload, ReservationStatus } from "@/types/reservation";
 import { RESERVATION_STATUS_OPTIONS } from "@/components/reservations/reservation-constants";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type Props = {
   mode: "create" | "edit";
@@ -32,6 +33,10 @@ type Props = {
   clients: Client[];
   reservation?: Reservation;
   triggerLabel?: string;
+  triggerSize?: ButtonProps["size"];
+  triggerClassName?: string;
+  triggerIcon?: ReactNode;
+  triggerAriaLabel?: string;
   onSubmitted: () => Promise<void> | void;
 };
 
@@ -88,6 +93,10 @@ export function ReservationFormDialog({
   clients,
   reservation,
   triggerLabel,
+  triggerSize,
+  triggerClassName,
+  triggerIcon,
+  triggerAriaLabel,
   onSubmitted,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -134,6 +143,10 @@ export function ReservationFormDialog({
   };
 
   const title = mode === "create" ? "単発予約の作成" : "予約の編集";
+  const defaultTriggerLabel = mode === "create" ? "新規予約" : "編集";
+  const resolvedTriggerLabel = triggerLabel ?? defaultTriggerLabel;
+  const iconOnly = triggerSize === "icon" && !triggerLabel;
+  const resolvedTriggerAriaLabel = triggerAriaLabel ?? resolvedTriggerLabel;
 
   return (
     <Dialog
@@ -145,12 +158,16 @@ export function ReservationFormDialog({
     >
       <DialogTrigger asChild>
         <Button
-          className="rounded-xl"
+          className={cn("rounded-xl", triggerClassName)}
           variant={mode === "create" ? "default" : "outline"}
+          size={triggerSize}
           disabled={!canManage}
           type="button"
+          aria-label={iconOnly ? resolvedTriggerAriaLabel : undefined}
+          title={iconOnly ? resolvedTriggerAriaLabel : undefined}
         >
-          {triggerLabel ?? (mode === "create" ? "新規予約" : "編集")}
+          {triggerIcon}
+          {iconOnly ? <span className="sr-only">{resolvedTriggerAriaLabel}</span> : resolvedTriggerLabel}
         </Button>
       </DialogTrigger>
 

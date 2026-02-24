@@ -11,7 +11,7 @@ import {
   subDays,
 } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteReservation, listClients, listReservations } from "@/lib/api";
 import { ReservationFormDialog } from "@/components/reservations/reservation-form-dialog";
@@ -351,14 +351,17 @@ export function ReservationsPage() {
                                   canOverrideCapacity={canOverrideCapacity}
                                   clients={clientsQuery.data ?? []}
                                   reservation={reservation}
-                                  triggerLabel="編集"
+                                  triggerSize="icon"
+                                  triggerClassName="size-7 rounded-lg p-0"
+                                  triggerIcon={<Pencil className="size-3.5" />}
+                                  triggerAriaLabel="予約を編集"
                                   onSubmitted={refreshReservations}
                                 />
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="size-8 shrink-0 rounded-xl"
+                                  className="size-7 shrink-0 rounded-lg"
                                   disabled={!canManageReservations || deleteMutation.isPending}
                                   onClick={async () => {
                                     if (!window.confirm("この予約を削除しますか？")) return;

@@ -152,6 +152,25 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def shuttle_leg_response(shuttle_leg, default_direction: nil)
+    return default_shuttle_leg_response(default_direction) if shuttle_leg.blank?
+
+    {
+      id: shuttle_leg.id,
+      tenant_id: shuttle_leg.tenant_id,
+      shuttle_operation_id: shuttle_leg.shuttle_operation_id,
+      direction: shuttle_leg.direction,
+      status: shuttle_leg.status,
+      planned_at: shuttle_leg.planned_at,
+      actual_at: shuttle_leg.actual_at,
+      handled_by_user_id: shuttle_leg.handled_by_user_id,
+      handled_by_user_name: shuttle_leg.handled_by_user&.name,
+      note: shuttle_leg.note,
+      created_at: shuttle_leg.created_at,
+      updated_at: shuttle_leg.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end
@@ -174,5 +193,22 @@ class ApplicationController < ActionController::API
 
   def render_error(code, message, status)
     render json: { error: { code: code, message: message } }, status: status
+  end
+
+  def default_shuttle_leg_response(direction)
+    {
+      id: nil,
+      tenant_id: nil,
+      shuttle_operation_id: nil,
+      direction: direction,
+      status: "pending",
+      planned_at: nil,
+      actual_at: nil,
+      handled_by_user_id: nil,
+      handled_by_user_name: nil,
+      note: nil,
+      created_at: nil,
+      updated_at: nil
+    }
   end
 end

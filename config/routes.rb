@@ -6,8 +6,10 @@ Rails.application.routes.draw do
   post "/auth/logout", to: "auth#logout"
   post "/api/v1/reservations/generate", to: "reservations#generate"
   get "/api/v1/today_board", to: "api/v1/today_board#index"
+  get "/api/v1/shuttle_board", to: "api/v1/shuttle_board#index"
   put "/api/v1/reservations/:reservation_id/attendance", to: "api/v1/attendances#upsert"
   put "/api/v1/reservations/:reservation_id/care_record", to: "api/v1/care_records#upsert"
+  put "/api/v1/reservations/:reservation_id/shuttle_legs/:direction", to: "api/v1/shuttle_legs#upsert", constraints: { direction: /pickup|dropoff/ }
 
   resources :tenants, only: [ :index, :create ]
   resources :users, only: [ :index, :create, :show, :update ]

@@ -54,6 +54,7 @@ function TestApp() {
         <Route path="/app/clients" element={<div>Clients Screen</div>} />
         <Route path="/app/clients/:id" element={<div>Client Detail Screen</div>} />
         <Route path="/app/reservations" element={<div>Reservations Screen</div>} />
+        <Route path="/app/shuttle" element={<div>Shuttle Screen</div>} />
         <Route path="/app/users" element={<div>Users Screen</div>} />
       </Route>
 
@@ -157,6 +158,17 @@ describe("auth routing integration", () => {
     submitLoginForm();
 
     await screen.findByText("Reservations Screen");
+    expect(screen.queryByText("Welcome back")).toBeNull();
+  });
+
+  it("falls back to shuttle screen when only shuttles:read is granted", async () => {
+    mockAuthState.permissions = ["shuttles:read"];
+
+    renderWithAuthRoute("/login");
+
+    submitLoginForm();
+
+    await screen.findByText("Shuttle Screen");
     expect(screen.queryByText("Welcome back")).toBeNull();
   });
 

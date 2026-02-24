@@ -14,6 +14,10 @@ describe("canAccessPath", () => {
     expect(canAccessPath("/app/shuttle", ["shuttles:read"])).toBe(true);
   });
 
+  it("allows invoices path with invoices:read", () => {
+    expect(canAccessPath("/app/invoices", ["invoices:read"])).toBe(true);
+  });
+
   it("rejects operations path without clients:read", () => {
     expect(canAccessPath("/app/clients", ["users:read"])).toBe(false);
   });
@@ -60,6 +64,10 @@ describe("resolvePostLoginPath", () => {
 
   it("falls back to shuttle board when only shuttles:read is available", () => {
     expect(resolvePostLoginPath({ permissions: ["shuttles:read"] })).toBe("/app/shuttle");
+  });
+
+  it("falls back to invoices when only invoices:read is available", () => {
+    expect(resolvePostLoginPath({ permissions: ["invoices:read"] })).toBe("/app/invoices");
   });
 
   it("falls back to dashboard when no scoped pages are allowed", () => {

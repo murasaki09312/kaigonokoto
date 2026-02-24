@@ -6,6 +6,7 @@ class User < ApplicationRecord
   has_many :permissions, through: :roles
   has_many :recorded_care_records, class_name: "CareRecord", foreign_key: :recorded_by_user_id, dependent: :nullify
   has_many :handled_shuttle_legs, class_name: "ShuttleLeg", foreign_key: :handled_by_user_id, dependent: :nullify
+  has_many :generated_invoices, class_name: "Invoice", foreign_key: :generated_by_user_id, dependent: :nullify
 
   has_secure_password
 

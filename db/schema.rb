@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_25_001100) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -88,12 +88,69 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_001100) do
     t.exclusion_constraint "tenant_id WITH =, client_id WITH =, daterange(start_on, COALESCE((end_on + 1), 'infinity'::date), '[)'::text) WITH &&", using: :gist, name: "contracts_no_overlapping_periods"
   end
 
+  create_table "invoice_lines", force: :cascade do |t|
+    t.bigint "attendance_id"
+    t.datetime "created_at", null: false
+    t.bigint "invoice_id", null: false
+    t.string "item_name", null: false
+    t.integer "line_total", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.bigint "price_item_id"
+    t.decimal "quantity", precision: 8, scale: 2, default: "1.0", null: false
+    t.date "service_date", null: false
+    t.bigint "tenant_id", null: false
+    t.integer "unit_price", null: false
+    t.datetime "updated_at", null: false
+    t.index ["attendance_id"], name: "index_invoice_lines_on_attendance_id"
+    t.index ["invoice_id"], name: "index_invoice_lines_on_invoice_id"
+    t.index ["price_item_id"], name: "index_invoice_lines_on_price_item_id"
+    t.index ["tenant_id", "attendance_id"], name: "index_invoice_lines_on_tenant_id_and_attendance_id", unique: true, where: "(attendance_id IS NOT NULL)"
+    t.index ["tenant_id", "invoice_id"], name: "index_invoice_lines_on_tenant_id_and_invoice_id"
+    t.index ["tenant_id", "service_date"], name: "index_invoice_lines_on_tenant_id_and_service_date"
+    t.index ["tenant_id"], name: "index_invoice_lines_on_tenant_id"
+  end
+
+  create_table "invoices", force: :cascade do |t|
+    t.date "billing_month", null: false
+    t.bigint "client_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "generated_at"
+    t.bigint "generated_by_user_id"
+    t.integer "status", default: 0, null: false
+    t.integer "subtotal_amount", default: 0, null: false
+    t.bigint "tenant_id", null: false
+    t.integer "total_amount", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_invoices_on_client_id"
+    t.index ["generated_by_user_id"], name: "index_invoices_on_generated_by_user_id"
+    t.index ["tenant_id", "billing_month"], name: "index_invoices_on_tenant_id_and_billing_month"
+    t.index ["tenant_id", "client_id", "billing_month"], name: "index_invoices_on_tenant_id_and_client_id_and_billing_month", unique: true
+    t.index ["tenant_id", "status"], name: "index_invoices_on_tenant_id_and_status"
+    t.index ["tenant_id"], name: "index_invoices_on_tenant_id"
+  end
+
   create_table "permissions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "description"
     t.string "key", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_permissions_on_key", unique: true
+  end
+
+  create_table "price_items", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.integer "billing_unit", default: 0, null: false
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "tenant_id", null: false
+    t.integer "unit_price", null: false
+    t.datetime "updated_at", null: false
+    t.date "valid_from"
+    t.date "valid_to"
+    t.index ["tenant_id", "active"], name: "index_price_items_on_tenant_id_and_active"
+    t.index ["tenant_id", "code"], name: "index_price_items_on_tenant_id_and_code", unique: true
+    t.index ["tenant_id"], name: "index_price_items_on_tenant_id"
   end
 
   create_table "reservations", force: :cascade do |t|
@@ -204,6 +261,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_001100) do
   add_foreign_key "clients", "tenants"
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "tenants"
+  add_foreign_key "invoice_lines", "attendances"
+  add_foreign_key "invoice_lines", "invoices"
+  add_foreign_key "invoice_lines", "price_items"
+  add_foreign_key "invoice_lines", "tenants"
+  add_foreign_key "invoices", "clients"
+  add_foreign_key "invoices", "tenants"
+  add_foreign_key "invoices", "users", column: "generated_by_user_id"
+  add_foreign_key "price_items", "tenants"
   add_foreign_key "reservations", "clients"
   add_foreign_key "reservations", "tenants"
   add_foreign_key "role_permissions", "permissions"

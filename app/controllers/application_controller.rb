@@ -171,6 +171,42 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def invoice_response(invoice, line_count: nil)
+    {
+      id: invoice.id,
+      tenant_id: invoice.tenant_id,
+      client_id: invoice.client_id,
+      client_name: invoice.client&.name,
+      billing_month: invoice.billing_month&.strftime("%Y-%m"),
+      status: invoice.status,
+      subtotal_amount: invoice.subtotal_amount,
+      total_amount: invoice.total_amount,
+      line_count: line_count,
+      generated_at: invoice.generated_at,
+      generated_by_user_id: invoice.generated_by_user_id,
+      created_at: invoice.created_at,
+      updated_at: invoice.updated_at
+    }
+  end
+
+  def invoice_line_response(invoice_line)
+    {
+      id: invoice_line.id,
+      tenant_id: invoice_line.tenant_id,
+      invoice_id: invoice_line.invoice_id,
+      attendance_id: invoice_line.attendance_id,
+      price_item_id: invoice_line.price_item_id,
+      service_date: invoice_line.service_date,
+      item_name: invoice_line.item_name,
+      quantity: invoice_line.quantity.to_f,
+      unit_price: invoice_line.unit_price,
+      line_total: invoice_line.line_total,
+      metadata: invoice_line.metadata,
+      created_at: invoice_line.created_at,
+      updated_at: invoice_line.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end

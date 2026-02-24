@@ -1,6 +1,7 @@
 class Attendance < ApplicationRecord
   belongs_to :tenant
   belongs_to :reservation
+  has_one :invoice_line, dependent: :nullify
 
   enum :status, {
     pending: 0,

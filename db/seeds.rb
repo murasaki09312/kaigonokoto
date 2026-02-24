@@ -15,6 +15,8 @@ permission_keys = [
   "care_records:manage",
   "shuttles:read",
   "shuttles:manage",
+  "invoices:read",
+  "invoices:manage",
   "reservations:read",
   "reservations:manage",
   "reservations:override_capacity",
@@ -38,7 +40,7 @@ staff_role.permissions = [
   permissions.fetch("attendances:manage"),
   permissions.fetch("care_records:manage"),
   permissions.fetch("shuttles:read"),
-  permissions.fetch("shuttles:manage"),
+  permissions.fetch("invoices:read"),
   permissions.fetch("reservations:read")
 ]
 
@@ -102,6 +104,17 @@ contract_v2.assign_attributes(
 contract_v2.save!
 
 tenant.update!(capacity_per_day: 25) if tenant.capacity_per_day != 25
+
+price_item = tenant.price_items.find_or_initialize_by(code: "day_service_basic")
+price_item.assign_attributes(
+  name: "通所介護基本利用料",
+  unit_price: 1200,
+  billing_unit: :per_use,
+  active: true,
+  valid_from: Date.new(2026, 1, 1),
+  valid_to: nil
+)
+price_item.save!
 
 sample_dates = [ Date.current, Date.current + 1.day ]
 sample_dates.each_with_index do |service_date, index|

@@ -22,6 +22,12 @@ import type {
   ShuttleLeg,
   ShuttleLegPayload,
 } from "@/types/shuttle";
+import type {
+  Invoice,
+  InvoiceGenerateResult,
+  InvoiceLine,
+  InvoiceListResult,
+} from "@/types/invoice";
 
 export type ApiError = {
   code: string;
@@ -420,6 +426,68 @@ export async function upsertShuttleLeg(
       payload,
     );
     return data.shuttle_leg;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listInvoices(params: { month: string }): Promise<InvoiceListResult> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set("month", params.month);
+
+    const { data } = await client.get<{
+      invoices: Invoice[];
+      meta: { month: string; total: number; total_amount: number };
+    }>(`/api/v1/invoices?${searchParams.toString()}`);
+
+    return {
+      invoices: data.invoices,
+      month: data.meta.month,
+      total: data.meta.total,
+      totalAmount: data.meta.total_amount,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getInvoice(id: number | string): Promise<{ invoice: Invoice; invoiceLines: InvoiceLine[] }> {
+  try {
+    const { data } = await client.get<{ invoice: Invoice; invoice_lines: InvoiceLine[] }>(`/api/v1/invoices/${id}`);
+    return {
+      invoice: data.invoice,
+      invoiceLines: data.invoice_lines,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function generateInvoices(payload: {
+  month: string;
+  mode?: "replace" | "skip";
+}): Promise<InvoiceGenerateResult> {
+  try {
+    const { data } = await client.post<{
+      invoices: Invoice[];
+      meta: {
+        month: string;
+        generated: number;
+        replaced: number;
+        skipped_existing: number;
+        skipped_fixed: number;
+      };
+    }>("/api/v1/invoices/generate", payload);
+
+    return {
+      invoices: data.invoices,
+      month: data.meta.month,
+      generated: data.meta.generated,
+      replaced: data.meta.replaced,
+      skippedExisting: data.meta.skipped_existing,
+      skippedFixed: data.meta.skipped_fixed,
+    };
   } catch (error) {
     throw normalizeError(error);
   }

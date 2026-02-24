@@ -340,11 +340,11 @@ export function ReservationsPage() {
                             <p className="truncate text-xs text-muted-foreground">
                               {formatReservationTime(reservation.start_time, reservation.end_time)}
                             </p>
-                            <div className="mt-1 flex items-center justify-between gap-2">
-                              <Badge variant="secondary" className={cn("shrink-0 rounded-lg", statusBadgeClass(reservation.status))}>
+                            <div className="mt-1 space-y-1.5">
+                              <Badge variant="secondary" className={cn("inline-flex max-w-full rounded-lg", statusBadgeClass(reservation.status))}>
                                 {statusLabel(reservation.status)}
                               </Badge>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center justify-end gap-1">
                                 <ReservationFormDialog
                                   mode="edit"
                                   canManage={canManageReservations}

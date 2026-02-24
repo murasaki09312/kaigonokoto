@@ -72,6 +72,9 @@ bin/rails spec
   - `clients:manage`
   - `contracts:read`
   - `contracts:manage`
+  - `today_board:read`
+  - `attendances:manage`
+  - `care_records:manage`
   - `reservations:read`
   - `reservations:manage`
   - `reservations:override_capacity`
@@ -79,7 +82,7 @@ bin/rails spec
   - `system:audit_read`
 - Roles:
   - `admin`: 全 permission
-  - `staff`: `users:read` / `clients:read` / `contracts:read` / `reservations:read`
+  - `staff`: `users:read` / `clients:read` / `contracts:read` / `today_board:read` / `attendances:manage` / `care_records:manage` / `reservations:read`
 
 ## API Endpoints
 
@@ -108,6 +111,9 @@ bin/rails spec
 - `GET /reservations/:id` (requires `reservations:read`)
 - `PATCH /reservations/:id` (requires `reservations:manage`)
 - `DELETE /reservations/:id` (requires `reservations:manage`)
+- `GET /api/v1/today_board` (requires `today_board:read`)
+- `PUT /api/v1/reservations/:reservation_id/attendance` (requires `attendances:manage`)
+- `PUT /api/v1/reservations/:reservation_id/care_record` (requires `care_records:manage`)
 
 エラー形式は統一しています。
 
@@ -223,6 +229,32 @@ curl -s -X POST http://localhost:3000/reservations/generate \
 - 定員超過日はベストエフォートでスキップし、`meta.capacity_skipped_dates` に返却
 - 管理者が `force=true` を指定した場合のみ定員超過日も作成
 
+### 12) Today Board (requires `today_board:read`)
+
+```bash
+curl -s "http://localhost:3000/api/v1/today_board?date=2026-02-24" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### 13) Attendance Upsert (requires `attendances:manage`)
+
+```bash
+curl -s -X PUT "http://localhost:3000/api/v1/reservations/1/attendance" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"present","note":"到着済み"}'
+```
+
+### 14) Care Record Upsert (requires `care_records:manage`)
+
+```bash
+curl -s -X PUT "http://localhost:3000/api/v1/reservations/1/care_record" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"body_temperature":36.6,"care_note":"バイタル安定"}'
+```
+
 ## RBAC Design
 
 - `Role` はグローバル
@@ -252,6 +284,14 @@ curl -s -X POST http://localhost:3000/reservations/generate \
   - `create/update/destroy/generate`: `reservations:manage`
   - `override_capacity?`: `reservations:override_capacity` or `tenants:manage`
   - `Scope`: `user.tenant_id` で限定
+- `TodayBoardPolicy`
+  - `index`: `today_board:read`
+- `AttendancePolicy`
+  - `upsert`: `attendances:manage`
+  - Reservation/Attendance の `tenant_id` 一致を要求
+- `CareRecordPolicy`
+  - `upsert`: `care_records:manage`
+  - Reservation/CareRecord の `tenant_id` 一致を要求
 
 ## Tenant Isolation Policy
 
@@ -281,6 +321,7 @@ token は `localStorage`（利用可能な環境）とメモリに保存し、`A
 
 - `/login`
 - `/app` (Dashboard)
+- `/app/today-board` (当日ボード: 出欠・ケア記録)
 - `/app/clients` (一覧 + 作成/編集/削除)
 - `/app/clients/:id` (詳細 + 契約/利用プラン履歴 + 改定追加/編集)
 - `/app/reservations` (日/週表示 + 単発作成 + 繰り返し生成 + 定員表示)
@@ -307,10 +348,11 @@ npm run dev
 4. `/app/clients` で利用者一覧が表示されることを確認する
 5. adminで利用者の作成/編集/削除ができることを確認する
 6. `/app/clients/:id` で契約履歴が表示され、admin が契約の作成/編集できることを確認する
-7. `staff@example.com` でログインし、契約の作成/編集ボタンが無効表示になることを確認する
-8. `/app/reservations` で日/週切替、単発作成、繰り返し生成、日別 `利用数/定員` 表示を確認する
-9. 定員到達日に通常作成すると `capacity_exceeded` となり、override権限ユーザーのみ force 作成できることを確認する
-10. `/app/users` でも staff の作成権限がないことを確認する
+7. `/app/today-board` で当日の予定一覧、出欠更新、ケア記録更新ができることを確認する
+8. `staff@example.com` でログインし、当日ボードで出欠/記録を更新できることを確認する
+9. `/app/reservations` で日/週切替、単発作成、繰り返し生成、日別 `利用数/定員` 表示を確認する
+10. 定員到達日に通常作成すると `capacity_exceeded` となり、override権限ユーザーのみ force 作成できることを確認する
+11. `/app/users` で staff の作成権限がないことを確認する
 
 ### CORS
 

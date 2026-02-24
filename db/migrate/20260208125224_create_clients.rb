@@ -16,7 +16,7 @@ class CreateClients < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :clients, [:tenant_id, :name]
-    add_index :clients, [:tenant_id, :status]
+    add_index :clients, [ :tenant_id, :name ]
+    add_index :clients, [ :tenant_id, :status ]
   end
 end

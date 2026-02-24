@@ -11,7 +11,7 @@ RSpec.describe Contract, type: :model do
         client: client,
         start_on: Date.new(2026, 1, 1),
         end_on: Date.new(2026, 1, 31),
-        weekdays: [1, 3, 5],
+        weekdays: [ 1, 3, 5 ],
         services: { meal: true },
         shuttle_required: false
       )
@@ -21,7 +21,7 @@ RSpec.describe Contract, type: :model do
         client: client,
         start_on: Date.new(2026, 1, 15),
         end_on: Date.new(2026, 2, 15),
-        weekdays: [2, 4],
+        weekdays: [ 2, 4 ],
         services: { bath: true },
         shuttle_required: true
       )

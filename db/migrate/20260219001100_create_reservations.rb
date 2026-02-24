@@ -12,7 +12,7 @@ class CreateReservations < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :reservations, [:tenant_id, :service_date]
-    add_index :reservations, [:tenant_id, :client_id, :service_date]
+    add_index :reservations, [ :tenant_id, :service_date ]
+    add_index :reservations, [ :tenant_id, :client_id, :service_date ]
   end
 end

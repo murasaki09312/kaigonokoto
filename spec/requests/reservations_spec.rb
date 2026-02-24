@@ -7,19 +7,19 @@ RSpec.describe "Reservations", type: :request do
 
   let!(:staff_role) do
     role = Role.find_or_create_by!(name: "staff_reservations_spec")
-    role.permissions = [reservations_read]
+    role.permissions = [ reservations_read ]
     role
   end
 
   let!(:manager_role) do
     role = Role.find_or_create_by!(name: "manager_reservations_spec")
-    role.permissions = [reservations_read, reservations_manage]
+    role.permissions = [ reservations_read, reservations_manage ]
     role
   end
 
   let!(:admin_role) do
     role = Role.find_or_create_by!(name: "admin_reservations_spec")
-    role.permissions = [reservations_read, reservations_manage, reservations_override]
+    role.permissions = [ reservations_read, reservations_manage, reservations_override ]
     role
   end
 
@@ -32,7 +32,7 @@ RSpec.describe "Reservations", type: :request do
       email: "staff@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [staff_role]
+      roles: [ staff_role ]
     )
   end
 
@@ -42,7 +42,7 @@ RSpec.describe "Reservations", type: :request do
       email: "manager@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [manager_role]
+      roles: [ manager_role ]
     )
   end
 
@@ -52,7 +52,7 @@ RSpec.describe "Reservations", type: :request do
       email: "admin@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [admin_role]
+      roles: [ admin_role ]
     )
   end
 
@@ -227,10 +227,8 @@ RSpec.describe "Reservations", type: :request do
 
     it "returns 422 for invalid status on generate" do
       post "/reservations/generate", params: {
-        client_id: tenant_a_client.id,
         start_on: "2026-03-09",
         end_on: "2026-03-16",
-        weekdays: [1],
         status: "bad-status"
       }, as: :json, headers: auth_headers_for(manager_user)
 
@@ -280,54 +278,119 @@ RSpec.describe "Reservations", type: :request do
     end
   end
 
-  describe "generate weekly reservations" do
-    it "creates multiple reservations by weekday range" do
+  describe "generate reservations from contracts" do
+    let!(:tenant_a_client_secondary) do
+      tenant_a.clients.create!(
+        name: "高橋 次郎",
+        kana: "タカハシ ジロウ",
+        status: :active
+      )
+    end
+
+    let!(:tenant_a_contract_primary) do
+      tenant_a.contracts.create!(
+        client: tenant_a_client,
+        start_on: Date.new(2026, 3, 1),
+        end_on: nil,
+        weekdays: [ 1, 3 ],
+        services: { "meal" => true },
+        shuttle_required: false
+      )
+    end
+
+    let!(:tenant_a_contract_secondary) do
+      tenant_a.contracts.create!(
+        client: tenant_a_client_secondary,
+        start_on: Date.new(2026, 3, 1),
+        end_on: nil,
+        weekdays: [ 1 ],
+        services: { "meal" => true },
+        shuttle_required: false
+      )
+    end
+
+    it "creates reservations from active contract weekdays in range" do
+      tenant_a.update!(capacity_per_day: 5)
+
       post "/reservations/generate", params: {
-        client_id: tenant_a_client.id,
         start_on: "2026-03-09",
-        end_on: "2026-03-22",
-        weekdays: [1, 3], # Monday and Wednesday
+        end_on: "2026-03-15",
         start_time: "09:30",
         end_time: "16:00"
       }, as: :json, headers: auth_headers_for(manager_user)
 
       expect(response).to have_http_status(:created)
-      expect(json_body.dig("meta", "total")).to eq(4)
+      expect(json_body.dig("meta", "total")).to eq(3)
+      expect(json_body.dig("meta", "capacity_skipped_dates")).to eq([])
       expect(json_body.fetch("reservations").map { |reservation| reservation.fetch("service_date") }).to contain_exactly(
         "2026-03-09",
         "2026-03-11",
-        "2026-03-16",
-        "2026-03-18"
+        "2026-03-09"
       )
     end
 
-    it "returns 422 with conflicts when any target date exceeds capacity" do
+    it "supports the api v1 generate route" do
+      tenant_a.update!(capacity_per_day: 5)
+
+      post "/api/v1/reservations/generate", params: {
+        start_on: "2026-03-09",
+        end_on: "2026-03-15"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:created)
+      expect(json_body.dig("meta", "total")).to eq(3)
+    end
+
+    it "uses best-effort generation and returns skipped dates when capacity is exceeded" do
+      tenant_a.update!(capacity_per_day: 1)
+
       post "/reservations/generate", params: {
-        client_id: tenant_a_client.id,
-        start_on: "2026-03-01",
-        end_on: "2026-03-08",
-        weekdays: [1], # Monday -> 2026-03-02 (already full)
+        start_on: "2026-03-09",
+        end_on: "2026-03-15",
         start_time: "09:30",
         end_time: "16:00"
       }, as: :json, headers: auth_headers_for(manager_user)
 
-      expect(response).to have_http_status(:unprocessable_entity)
-      expect(json_body.dig("error", "code")).to eq("capacity_exceeded")
-      expect(json_body.fetch("conflicts")).to contain_exactly("2026-03-02")
+      expect(response).to have_http_status(:created)
+      expect(json_body.dig("meta", "total")).to eq(2)
+      expect(json_body.dig("meta", "capacity_skipped_dates")).to contain_exactly("2026-03-09")
     end
 
-    it "allows generate with force for override-capable user" do
+    it "skips existing reservations for same client/date" do
+      tenant_a.update!(capacity_per_day: 5)
+      tenant_a.reservations.create!(
+        client: tenant_a_client_secondary,
+        service_date: Date.new(2026, 3, 9),
+        start_time: "09:30",
+        end_time: "16:00",
+        status: :scheduled
+      )
+
       post "/reservations/generate", params: {
-        client_id: tenant_a_client.id,
-        start_on: "2026-03-01",
-        end_on: "2026-03-08",
-        weekdays: [1], # Monday -> 2026-03-02 (already full)
+        start_on: "2026-03-09",
+        end_on: "2026-03-15",
+        start_time: "09:30",
+        end_time: "16:00"
+      }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:created)
+      expect(json_body.dig("meta", "total")).to eq(2)
+      expect(json_body.dig("meta", "existing_skipped_total")).to eq(1)
+      expect(json_body.dig("meta", "capacity_skipped_dates")).to eq([])
+    end
+
+    it "allows force generation for override-capable user" do
+      tenant_a.update!(capacity_per_day: 1)
+
+      post "/reservations/generate", params: {
+        start_on: "2026-03-09",
+        end_on: "2026-03-15",
         force: true
       }, as: :json, headers: auth_headers_for(admin_user)
 
       expect(response).to have_http_status(:created)
-      expect(json_body.dig("meta", "total")).to eq(1)
-      expect(tenant_a.reservations.where(service_date: Date.new(2026, 3, 2)).count).to eq(2)
+      expect(json_body.dig("meta", "total")).to eq(3)
+      expect(json_body.dig("meta", "capacity_skipped_dates")).to eq([])
     end
   end
 end

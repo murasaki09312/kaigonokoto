@@ -172,7 +172,6 @@ export function ReservationsPage() {
               <ReservationGenerateDialog
                 canManage={canManageReservations}
                 canOverrideCapacity={canOverrideCapacity}
-                clients={clientsQuery.data ?? []}
                 onSubmitted={refreshReservations}
               />
             </div>

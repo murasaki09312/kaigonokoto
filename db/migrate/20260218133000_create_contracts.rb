@@ -14,7 +14,7 @@ class CreateContracts < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :contracts, [:tenant_id, :client_id, :start_on]
-    add_index :contracts, [:tenant_id, :client_id, :end_on]
+    add_index :contracts, [ :tenant_id, :client_id, :start_on ]
+    add_index :contracts, [ :tenant_id, :client_id, :end_on ]
   end
 end

@@ -29,7 +29,14 @@ class InvoiceGenerationService
     skipped_fixed_count = 0
 
     with_generation_lock! do
-      grouped_attendances.each do |client_id, attendances|
+      attendance_groups = grouped_attendances
+
+      if @mode == "replace"
+        _removed_count, skipped_fixed_removed_count = remove_obsolete_draft_invoices!(attendance_groups.keys)
+        skipped_fixed_count += skipped_fixed_removed_count
+      end
+
+      attendance_groups.each do |client_id, attendances|
         invoice = @tenant.invoices.find_by(client_id: client_id, billing_month: @month_start)
 
         if invoice&.status_fixed?
@@ -121,6 +128,26 @@ class InvoiceGenerationService
         }
       )
     end
+  end
+
+  def remove_obsolete_draft_invoices!(target_client_ids)
+    invoices = @tenant.invoices.for_month(@month_start)
+    invoices = invoices.where.not(client_id: target_client_ids) if target_client_ids.present?
+
+    removed_count = 0
+    skipped_fixed_count = 0
+
+    invoices.find_each do |invoice|
+      if invoice.status_fixed?
+        skipped_fixed_count += 1
+        next
+      end
+
+      invoice.destroy!
+      removed_count += 1
+    end
+
+    [ removed_count, skipped_fixed_count ]
   end
 
   def with_generation_lock!

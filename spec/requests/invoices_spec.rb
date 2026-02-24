@@ -200,6 +200,21 @@ RSpec.describe "Invoices", type: :request do
       expect(tenant_a.invoices.where(billing_month: month_start).sum(:total_amount)).to eq(3000)
     end
 
+    it "removes stale draft invoices when client has no present attendance after replace" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      stale_invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_2.id, billing_month: month_start)
+      a_attendance_present_2.update!(status: :absent)
+
+      post "/api/v1/invoices/generate", params: { month: month, mode: "replace" }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:created)
+      expect(json_body.dig("meta", "generated")).to eq(1)
+      expect(json_body.dig("meta", "replaced")).to eq(1)
+      expect(tenant_a.invoices.where(billing_month: month_start).pluck(:client_id)).to contain_exactly(tenant_a_client_1.id)
+      expect(tenant_a.invoices.exists?(id: stale_invoice.id)).to be(false)
+      expect(tenant_a.invoice_lines.where(attendance_id: a_attendance_present_2.id)).to be_empty
+    end
+
     it "skips fixed invoices even with mode=replace" do
       post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
       invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)

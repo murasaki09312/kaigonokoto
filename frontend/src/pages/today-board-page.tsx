@@ -136,7 +136,14 @@ export function TodayBoardPage() {
       reservationId: number;
       payload: AttendancePayload;
     }) => upsertAttendance(reservationId, payload),
-    onSuccess: async () => {
+    onSuccess: async (_attendance, variables) => {
+      setAttendanceDrafts((prev) => {
+        if (!(variables.reservationId in prev)) return prev;
+
+        const next = { ...prev };
+        delete next[variables.reservationId];
+        return next;
+      });
       toast.success("出欠を保存しました");
       await boardQuery.refetch();
     },
@@ -153,7 +160,14 @@ export function TodayBoardPage() {
       reservationId: number;
       payload: CareRecordPayload;
     }) => upsertCareRecord(reservationId, payload),
-    onSuccess: async () => {
+    onSuccess: async (_careRecord, variables) => {
+      setCareRecordDrafts((prev) => {
+        if (!(variables.reservationId in prev)) return prev;
+
+        const next = { ...prev };
+        delete next[variables.reservationId];
+        return next;
+      });
       toast.success("記録を保存しました");
       await boardQuery.refetch();
     },

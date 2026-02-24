@@ -16,6 +16,8 @@ module Api
         render json: { care_record: care_record_response(care_record) }, status: :ok
       rescue ActiveRecord::RecordInvalid => exception
         render_validation_error(exception.record)
+      rescue ActiveRecord::RecordNotUnique
+        render_error("validation_error", "Concurrent write conflict. Please retry.", :unprocessable_entity)
       end
 
       private

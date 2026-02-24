@@ -15,6 +15,8 @@ module Api
         render json: { attendance: attendance_response(attendance) }, status: :ok
       rescue ActiveRecord::RecordInvalid => exception
         render_validation_error(exception.record)
+      rescue ActiveRecord::RecordNotUnique
+        render_error("validation_error", "Concurrent write conflict. Please retry.", :unprocessable_entity)
       rescue ArgumentError
         render_error("validation_error", "status is invalid", :unprocessable_entity)
       end

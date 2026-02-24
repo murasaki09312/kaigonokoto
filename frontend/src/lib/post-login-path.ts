@@ -7,6 +7,7 @@ type RouteAccessRule = {
 };
 
 const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
+  { pattern: /^\/app\/today-board(?:\/|$)/, requiredPermissions: ["today_board:read"] },
   { pattern: /^\/app\/clients(?:\/|$)/, requiredPermissions: ["clients:read"] },
   { pattern: /^\/app\/reservations(?:\/|$)/, requiredPermissions: ["reservations:read"] },
   { pattern: /^\/app\/users(?:\/|$)/, requiredPermissions: ["users:read"] },

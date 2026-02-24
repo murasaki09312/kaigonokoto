@@ -9,6 +9,13 @@ import type {
   ReservationGeneratePayload,
   ReservationPayload,
 } from "@/types/reservation";
+import type {
+  Attendance,
+  AttendancePayload,
+  CareRecord,
+  CareRecordPayload,
+  TodayBoardResponse,
+} from "@/types/today-board";
 
 export type ApiError = {
   code: string;
@@ -333,6 +340,50 @@ export async function generateReservations(payload: ReservationGeneratePayload):
       capacitySkippedDates: data.meta.capacity_skipped_dates ?? [],
       existingSkippedTotal: data.meta.existing_skipped_total ?? 0,
     };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getTodayBoard(params?: { date?: string }): Promise<TodayBoardResponse> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.date) searchParams.set("date", params.date);
+
+    const query = searchParams.toString();
+    const path = query.length > 0 ? `/api/v1/today_board?${query}` : "/api/v1/today_board";
+    const { data } = await client.get<TodayBoardResponse>(path);
+    return data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function upsertAttendance(
+  reservationId: number | string,
+  payload: AttendancePayload,
+): Promise<Attendance> {
+  try {
+    const { data } = await client.put<{ attendance: Attendance }>(
+      `/api/v1/reservations/${reservationId}/attendance`,
+      payload,
+    );
+    return data.attendance;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function upsertCareRecord(
+  reservationId: number | string,
+  payload: CareRecordPayload,
+): Promise<CareRecord> {
+  try {
+    const { data } = await client.put<{ care_record: CareRecord }>(
+      `/api/v1/reservations/${reservationId}/care_record`,
+      payload,
+    );
+    return data.care_record;
   } catch (error) {
     throw normalizeError(error);
   }

@@ -50,6 +50,7 @@ function TestApp() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<div>Dashboard Screen</div>} />
+        <Route path="/app/today-board" element={<div>Today Board Screen</div>} />
         <Route path="/app/clients" element={<div>Clients Screen</div>} />
         <Route path="/app/clients/:id" element={<div>Client Detail Screen</div>} />
         <Route path="/app/reservations" element={<div>Reservations Screen</div>} />

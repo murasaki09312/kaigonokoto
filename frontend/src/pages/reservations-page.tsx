@@ -295,85 +295,87 @@ export function ReservationsPage() {
           )}
 
           {!reservationsQuery.isPending && !reservationsQuery.isError && reservations.length > 0 && viewMode === "week" && (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-              {rangeDates.map((date) => {
-                const dateKey = formatDateKey(date);
-                const dayReservations = reservationsByDate[dateKey] ?? [];
-                const capacity = reservationsQuery.data?.capacityByDate[dateKey];
+            <div className="-mx-1 overflow-x-auto pb-1">
+              <div className="grid min-w-[1120px] grid-cols-7 gap-3 px-1">
+                {rangeDates.map((date) => {
+                  const dateKey = formatDateKey(date);
+                  const dayReservations = reservationsByDate[dateKey] ?? [];
+                  const capacity = reservationsQuery.data?.capacityByDate[dateKey];
 
-                return (
-                  <Card key={dateKey} className="rounded-2xl border-border/70">
-                    <CardHeader className="space-y-2 pb-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="text-sm font-semibold">
-                          {format(date, "M/d (E)", { locale: ja })}
-                        </CardTitle>
-                        {isSameDay(date, new Date()) && (
-                          <Badge variant="secondary" className="rounded-lg">
-                            今日
-                          </Badge>
-                        )}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "rounded-lg",
-                          capacity?.exceeded
-                            ? "border-destructive/40 text-destructive"
-                            : capacity && capacity.remaining <= 0
-                              ? "border-amber-500/40 text-amber-700"
-                              : "text-muted-foreground",
-                        )}
-                      >
-                        {capacity ? `${capacity.scheduled} / ${capacity.capacity}` : "- / -"}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {dayReservations.length === 0 && (
-                        <p className="text-xs text-muted-foreground">予約なし</p>
-                      )}
-
-                      {dayReservations.map((reservation) => (
-                        <div key={reservation.id} className="rounded-xl border border-border/70 p-2">
-                          <p className="text-xs font-medium">{reservation.client_name || "利用者未設定"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatReservationTime(reservation.start_time, reservation.end_time)}
-                          </p>
-                          <div className="mt-1 flex items-center justify-between gap-2">
-                            <Badge variant="secondary" className={cn("rounded-lg", statusBadgeClass(reservation.status))}>
-                              {statusLabel(reservation.status)}
+                  return (
+                    <Card key={dateKey} className="min-w-0 rounded-2xl border-border/70">
+                      <CardHeader className="space-y-2 pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="truncate text-sm font-semibold">
+                            {format(date, "M/d (E)", { locale: ja })}
+                          </CardTitle>
+                          {isSameDay(date, new Date()) && (
+                            <Badge variant="secondary" className="shrink-0 rounded-lg">
+                              今日
                             </Badge>
-                            <div className="flex items-center gap-1">
-                              <ReservationFormDialog
-                                mode="edit"
-                                canManage={canManageReservations}
-                                canOverrideCapacity={canOverrideCapacity}
-                                clients={clientsQuery.data ?? []}
-                                reservation={reservation}
-                                triggerLabel="編集"
-                                onSubmitted={refreshReservations}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 rounded-xl"
-                                disabled={!canManageReservations || deleteMutation.isPending}
-                                onClick={async () => {
-                                  if (!window.confirm("この予約を削除しますか？")) return;
-                                  await deleteMutation.mutateAsync(reservation.id);
-                                }}
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
+                          )}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "w-fit rounded-lg",
+                            capacity?.exceeded
+                              ? "border-destructive/40 text-destructive"
+                              : capacity && capacity.remaining <= 0
+                                ? "border-amber-500/40 text-amber-700"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {capacity ? `${capacity.scheduled} / ${capacity.capacity}` : "- / -"}
+                        </Badge>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {dayReservations.length === 0 && (
+                          <p className="text-xs text-muted-foreground">予約なし</p>
+                        )}
+
+                        {dayReservations.map((reservation) => (
+                          <div key={reservation.id} className="min-w-0 rounded-xl border border-border/70 p-2">
+                            <p className="truncate text-xs font-medium">{reservation.client_name || "利用者未設定"}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {formatReservationTime(reservation.start_time, reservation.end_time)}
+                            </p>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                              <Badge variant="secondary" className={cn("shrink-0 rounded-lg", statusBadgeClass(reservation.status))}>
+                                {statusLabel(reservation.status)}
+                              </Badge>
+                              <div className="flex items-center gap-1">
+                                <ReservationFormDialog
+                                  mode="edit"
+                                  canManage={canManageReservations}
+                                  canOverrideCapacity={canOverrideCapacity}
+                                  clients={clientsQuery.data ?? []}
+                                  reservation={reservation}
+                                  triggerLabel="編集"
+                                  onSubmitted={refreshReservations}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 shrink-0 rounded-xl"
+                                  disabled={!canManageReservations || deleteMutation.isPending}
+                                  onClick={async () => {
+                                    if (!window.confirm("この予約を削除しますか？")) return;
+                                    await deleteMutation.mutateAsync(reservation.id);
+                                  }}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardContent>

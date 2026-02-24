@@ -2,7 +2,18 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Save, Search } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDashed,
+  CircleSlash2,
+  Save,
+  Search,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getTodayBoard, type ApiError, upsertAttendance, upsertCareRecord } from "@/lib/api";
 import type {
@@ -13,13 +24,21 @@ import type {
 } from "@/types/today-board";
 import { useAuth } from "@/providers/auth-provider";
 import { formatReservationTime, statusLabel } from "@/components/reservations/reservation-constants";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type AttendanceDraft = {
   status: AttendanceStatus;
@@ -38,12 +57,64 @@ type CareRecordDraft = {
   handoff_note: string;
 };
 
-const ATTENDANCE_STATUS_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
-  { value: "pending", label: "未処理" },
-  { value: "present", label: "出席" },
-  { value: "absent", label: "欠席" },
-  { value: "cancelled", label: "キャンセル" },
+type AttendanceStatusUiMeta = {
+  label: string;
+  icon: LucideIcon;
+  variant: NonNullable<BadgeProps["variant"]>;
+  badgeClassName: string;
+};
+
+const ATTENDANCE_STATUS_UI: Record<AttendanceStatus, AttendanceStatusUiMeta> = {
+  pending: {
+    label: "予定",
+    icon: CircleDashed,
+    variant: "outline",
+    badgeClassName: "border-zinc-300 bg-zinc-50 text-zinc-600",
+  },
+  present: {
+    label: "出席",
+    icon: CheckCircle2,
+    variant: "secondary",
+    badgeClassName: "border-emerald-200 bg-emerald-100 text-emerald-700",
+  },
+  absent: {
+    label: "欠席",
+    icon: XCircle,
+    variant: "secondary",
+    badgeClassName: "border-rose-200 bg-rose-100 text-rose-700",
+  },
+  cancelled: {
+    label: "キャンセル",
+    icon: CircleSlash2,
+    variant: "secondary",
+    badgeClassName: "border-border bg-muted text-muted-foreground",
+  },
+};
+
+const ATTENDANCE_STATUS_OPTIONS: AttendanceStatus[] = [
+  "pending",
+  "present",
+  "absent",
+  "cancelled",
 ];
+
+function AttendanceStatusBadge({ status }: { status: AttendanceStatus }) {
+  const meta = ATTENDANCE_STATUS_UI[status];
+  const Icon = meta.icon;
+
+  return (
+    <Badge
+      variant={meta.variant}
+      className={cn(
+        "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
+        meta.badgeClassName,
+      )}
+    >
+      <Icon className="size-3.5" />
+      <span>{meta.label}</span>
+    </Badge>
+  );
+}
 
 function formatDateKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
@@ -398,27 +469,51 @@ export function TodayBoardPage() {
 
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-muted-foreground">ステータス</label>
-                      <Select
-                        value={attendanceDraft.status}
-                        onValueChange={(value) =>
-                          updateAttendanceDraft(item, (current) => ({
-                            ...current,
-                            status: value as AttendanceStatus,
-                          }))
-                        }
-                        disabled={!canManageAttendance}
-                      >
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ATTENDANCE_STATUS_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canManageAttendance ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex min-h-10 items-center rounded-full transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              aria-label="出欠ステータスを変更"
+                            >
+                              <AttendanceStatusBadge status={attendanceDraft.status} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-44 rounded-xl">
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">
+                              出欠ステータス
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {ATTENDANCE_STATUS_OPTIONS.map((statusValue) => {
+                              const meta = ATTENDANCE_STATUS_UI[statusValue];
+                              const Icon = meta.icon;
+                              return (
+                                <DropdownMenuItem
+                                  key={statusValue}
+                                  className="cursor-pointer rounded-lg py-2"
+                                  onSelect={() =>
+                                    updateAttendanceDraft(item, (current) => ({
+                                      ...current,
+                                      status: statusValue,
+                                    }))
+                                  }
+                                >
+                                  <span className="inline-flex items-center gap-2">
+                                    <Icon className="size-4 text-muted-foreground" />
+                                    <span>{meta.label}</span>
+                                  </span>
+                                  {attendanceDraft.status === statusValue && (
+                                    <Check className="ml-auto size-4 text-primary" />
+                                  )}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <AttendanceStatusBadge status={attendanceDraft.status} />
+                      )}
                     </div>
 
                     <div className="space-y-2">

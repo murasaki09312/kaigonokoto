@@ -10,6 +10,10 @@ describe("canAccessPath", () => {
     expect(canAccessPath("/app/clients", ["clients:read"])).toBe(true);
   });
 
+  it("allows shuttle path with shuttles:read", () => {
+    expect(canAccessPath("/app/shuttle", ["shuttles:read"])).toBe(true);
+  });
+
   it("rejects operations path without clients:read", () => {
     expect(canAccessPath("/app/clients", ["users:read"])).toBe(false);
   });
@@ -52,6 +56,10 @@ describe("resolvePostLoginPath", () => {
 
   it("falls back to first accessible default path when operations is not allowed", () => {
     expect(resolvePostLoginPath({ permissions: ["users:read"] })).toBe("/app/users");
+  });
+
+  it("falls back to shuttle board when only shuttles:read is available", () => {
+    expect(resolvePostLoginPath({ permissions: ["shuttles:read"] })).toBe("/app/shuttle");
   });
 
   it("falls back to dashboard when no scoped pages are allowed", () => {

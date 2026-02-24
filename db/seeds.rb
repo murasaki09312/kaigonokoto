@@ -13,6 +13,8 @@ permission_keys = [
   "today_board:read",
   "attendances:manage",
   "care_records:manage",
+  "shuttles:read",
+  "shuttles:manage",
   "reservations:read",
   "reservations:manage",
   "reservations:override_capacity",
@@ -35,6 +37,8 @@ staff_role.permissions = [
   permissions.fetch("today_board:read"),
   permissions.fetch("attendances:manage"),
   permissions.fetch("care_records:manage"),
+  permissions.fetch("shuttles:read"),
+  permissions.fetch("shuttles:manage"),
   permissions.fetch("reservations:read")
 ]
 
@@ -129,4 +133,33 @@ if today_reservation
     handoff_note: "特記事項なし"
   )
   care_record.save!
+
+  shuttle_operation = tenant.shuttle_operations.find_or_initialize_by(reservation: today_reservation)
+  shuttle_operation.assign_attributes(
+    client: today_reservation.client,
+    service_date: today_reservation.service_date,
+    requires_pickup: true,
+    requires_dropoff: true
+  )
+  shuttle_operation.save!
+
+  pickup_leg = shuttle_operation.shuttle_legs.find_or_initialize_by(direction: :pickup)
+  pickup_leg.assign_attributes(
+    tenant: tenant,
+    status: :boarded,
+    actual_at: Time.zone.now.change(hour: 9, min: 15),
+    handled_by_user: staff_user,
+    note: "玄関で乗車確認"
+  )
+  pickup_leg.save!
+
+  dropoff_leg = shuttle_operation.shuttle_legs.find_or_initialize_by(direction: :dropoff)
+  dropoff_leg.assign_attributes(
+    tenant: tenant,
+    status: :pending,
+    handled_by_user: nil,
+    actual_at: nil,
+    note: nil
+  )
+  dropoff_leg.save!
 end

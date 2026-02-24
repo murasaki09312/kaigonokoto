@@ -3,6 +3,7 @@ class Reservation < ApplicationRecord
   belongs_to :client
   has_one :attendance, dependent: :destroy
   has_one :care_record, dependent: :destroy
+  has_one :shuttle_operation, dependent: :destroy
 
   enum :status, {
     scheduled: 0,

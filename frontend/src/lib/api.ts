@@ -16,6 +16,12 @@ import type {
   CareRecordPayload,
   TodayBoardResponse,
 } from "@/types/today-board";
+import type {
+  ShuttleBoardResponse,
+  ShuttleDirection,
+  ShuttleLeg,
+  ShuttleLegPayload,
+} from "@/types/shuttle";
 
 export type ApiError = {
   code: string;
@@ -384,6 +390,36 @@ export async function upsertCareRecord(
       payload,
     );
     return data.care_record;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getShuttleBoard(params?: { date?: string }): Promise<ShuttleBoardResponse> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.date) searchParams.set("date", params.date);
+
+    const query = searchParams.toString();
+    const path = query.length > 0 ? `/api/v1/shuttle_board?${query}` : "/api/v1/shuttle_board";
+    const { data } = await client.get<ShuttleBoardResponse>(path);
+    return data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function upsertShuttleLeg(
+  reservationId: number | string,
+  direction: ShuttleDirection,
+  payload: ShuttleLegPayload,
+): Promise<ShuttleLeg> {
+  try {
+    const { data } = await client.put<{ shuttle_leg: ShuttleLeg }>(
+      `/api/v1/reservations/${reservationId}/shuttle_legs/${direction}`,
+      payload,
+    );
+    return data.shuttle_leg;
   } catch (error) {
     throw normalizeError(error);
   }

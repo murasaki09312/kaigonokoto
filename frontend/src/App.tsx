@@ -9,6 +9,7 @@ import { ClientsPage } from "@/pages/clients-page";
 import { ClientDetailPage } from "@/pages/client-detail-page";
 import { ReservationsPage } from "@/pages/reservations-page";
 import { TodayBoardPage } from "@/pages/today-board-page";
+import { ShuttleBoardPage } from "@/pages/shuttle-board-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="reservations" element={<ReservationsPage />} />
+            <Route path="shuttle" element={<ShuttleBoardPage />} />
             <Route path="users" element={<UsersPage />} />
           </Route>
         </Route>

@@ -1,5 +1,5 @@
 const OPERATIONS_PATH = "/app/clients";
-const FALLBACK_PATHS = [OPERATIONS_PATH, "/app/reservations", "/app/users", "/app"] as const;
+const FALLBACK_PATHS = [OPERATIONS_PATH, "/app/reservations", "/app/shuttle", "/app/users", "/app"] as const;
 
 type RouteAccessRule = {
   pattern: RegExp;
@@ -10,6 +10,7 @@ const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { pattern: /^\/app\/today-board(?:\/|$)/, requiredPermissions: ["today_board:read"] },
   { pattern: /^\/app\/clients(?:\/|$)/, requiredPermissions: ["clients:read"] },
   { pattern: /^\/app\/reservations(?:\/|$)/, requiredPermissions: ["reservations:read"] },
+  { pattern: /^\/app\/shuttle(?:\/|$)/, requiredPermissions: ["shuttles:read"] },
   { pattern: /^\/app\/users(?:\/|$)/, requiredPermissions: ["users:read"] },
   { pattern: /^\/app\/?$/, requiredPermissions: [] },
 ];

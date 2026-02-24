@@ -7,19 +7,19 @@ RSpec.describe "Reservations", type: :request do
 
   let!(:staff_role) do
     role = Role.find_or_create_by!(name: "staff_reservations_spec")
-    role.permissions = [reservations_read]
+    role.permissions = [ reservations_read ]
     role
   end
 
   let!(:manager_role) do
     role = Role.find_or_create_by!(name: "manager_reservations_spec")
-    role.permissions = [reservations_read, reservations_manage]
+    role.permissions = [ reservations_read, reservations_manage ]
     role
   end
 
   let!(:admin_role) do
     role = Role.find_or_create_by!(name: "admin_reservations_spec")
-    role.permissions = [reservations_read, reservations_manage, reservations_override]
+    role.permissions = [ reservations_read, reservations_manage, reservations_override ]
     role
   end
 
@@ -32,7 +32,7 @@ RSpec.describe "Reservations", type: :request do
       email: "staff@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [staff_role]
+      roles: [ staff_role ]
     )
   end
 
@@ -42,7 +42,7 @@ RSpec.describe "Reservations", type: :request do
       email: "manager@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [manager_role]
+      roles: [ manager_role ]
     )
   end
 
@@ -52,7 +52,7 @@ RSpec.describe "Reservations", type: :request do
       email: "admin@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [admin_role]
+      roles: [ admin_role ]
     )
   end
 
@@ -292,7 +292,7 @@ RSpec.describe "Reservations", type: :request do
         client: tenant_a_client,
         start_on: Date.new(2026, 3, 1),
         end_on: nil,
-        weekdays: [1, 3],
+        weekdays: [ 1, 3 ],
         services: { "meal" => true },
         shuttle_required: false
       )
@@ -303,7 +303,7 @@ RSpec.describe "Reservations", type: :request do
         client: tenant_a_client_secondary,
         start_on: Date.new(2026, 3, 1),
         end_on: nil,
-        weekdays: [1],
+        weekdays: [ 1 ],
         services: { "meal" => true },
         shuttle_required: false
       )

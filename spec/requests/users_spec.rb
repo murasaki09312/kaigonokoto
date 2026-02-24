@@ -7,13 +7,13 @@ RSpec.describe "Users", type: :request do
 
   let!(:admin_role) do
     role = Role.create!(name: "admin")
-    role.permissions = [users_read, users_manage, tenants_manage]
+    role.permissions = [ users_read, users_manage, tenants_manage ]
     role
   end
 
   let!(:staff_role) do
     role = Role.create!(name: "staff")
-    role.permissions = [users_read]
+    role.permissions = [ users_read ]
     role
   end
 
@@ -26,7 +26,7 @@ RSpec.describe "Users", type: :request do
       email: "admin@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [admin_role]
+      roles: [ admin_role ]
     )
   end
 
@@ -36,7 +36,7 @@ RSpec.describe "Users", type: :request do
       email: "staff@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [staff_role]
+      roles: [ staff_role ]
     )
   end
 
@@ -46,7 +46,7 @@ RSpec.describe "Users", type: :request do
       email: "user@b.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [admin_role]
+      roles: [ admin_role ]
     )
   end
 

@@ -5,7 +5,7 @@ RSpec.describe "Auth", type: :request do
   let!(:users_read) { Permission.create!(key: "users:read") }
   let!(:staff_role) do
     role = Role.create!(name: "staff")
-    role.permissions = [users_read]
+    role.permissions = [ users_read ]
     role
   end
   let!(:user) do
@@ -14,7 +14,7 @@ RSpec.describe "Auth", type: :request do
       email: "admin@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [staff_role]
+      roles: [ staff_role ]
     )
   end
 

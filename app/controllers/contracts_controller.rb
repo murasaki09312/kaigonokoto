@@ -1,6 +1,6 @@
 class ContractsController < ApplicationController
   before_action :set_client
-  before_action :set_contract, only: [:show, :update]
+  before_action :set_contract, only: [ :show, :update ]
 
   def index
     authorize Contract, :index?, policy_class: ContractPolicy

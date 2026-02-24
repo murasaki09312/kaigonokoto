@@ -86,17 +86,17 @@ class ReservationGeneratorService
   end
 
   def split_creatable_client_ids(service_date:, pending_client_ids:)
-    return [pending_client_ids, false] if @force || @status.to_s != "scheduled"
+    return [ pending_client_ids, false ] if @force || @status.to_s != "scheduled"
 
     scheduled_count = @tenant.reservations.scheduled_on(service_date).count
     remaining_capacity = @tenant.capacity_per_day - scheduled_count
 
-    return [[], pending_client_ids.any?] if remaining_capacity <= 0
+    return [ [], pending_client_ids.any? ] if remaining_capacity <= 0
 
     creatable_client_ids = pending_client_ids.first(remaining_capacity)
     skipped_by_capacity = pending_client_ids.size > creatable_client_ids.size
 
-    [creatable_client_ids, skipped_by_capacity]
+    [ creatable_client_ids, skipped_by_capacity ]
   end
 
   def with_capacity_lock!(service_date)

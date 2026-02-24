@@ -18,7 +18,7 @@ permission_keys = [
 ]
 
 permissions = permission_keys.to_h do |key|
-  [key, Permission.find_or_create_by!(key: key)]
+  [ key, Permission.find_or_create_by!(key: key) ]
 end
 
 admin_role = Role.find_or_create_by!(name: "admin")
@@ -48,8 +48,8 @@ staff_user.assign_attributes(
 )
 staff_user.save!
 
-admin_user.roles = [admin_role]
-staff_user.roles = [staff_role]
+admin_user.roles = [ admin_role ]
+staff_user.roles = [ staff_role ]
 
 tenant.clients.find_or_create_by!(name: "山田 太郎") do |client|
   client.kana = "ヤマダ タロウ"
@@ -72,7 +72,7 @@ sample_client = tenant.clients.find_by!(name: "山田 太郎")
 contract_v1 = tenant.contracts.find_or_initialize_by(client_id: sample_client.id, start_on: Date.new(2025, 10, 1))
 contract_v1.assign_attributes(
   end_on: Date.new(2025, 12, 31),
-  weekdays: [1, 3, 5],
+  weekdays: [ 1, 3, 5 ],
   services: { "meal" => true, "bath" => true, "rehabilitation" => false, "recreation" => true },
   service_note: "初期契約サンプル",
   shuttle_required: true,
@@ -83,7 +83,7 @@ contract_v1.save!
 contract_v2 = tenant.contracts.find_or_initialize_by(client_id: sample_client.id, start_on: Date.new(2026, 1, 1))
 contract_v2.assign_attributes(
   end_on: nil,
-  weekdays: [1, 2, 4],
+  weekdays: [ 1, 2, 4 ],
   services: { "meal" => true, "bath" => false, "rehabilitation" => true, "recreation" => true },
   service_note: "冬季改定サンプル",
   shuttle_required: false,
@@ -93,7 +93,7 @@ contract_v2.save!
 
 tenant.update!(capacity_per_day: 25) if tenant.capacity_per_day != 25
 
-sample_dates = [Date.current, Date.current + 1.day]
+sample_dates = [ Date.current, Date.current + 1.day ]
 sample_dates.each_with_index do |service_date, index|
   reservation = tenant.reservations.find_or_initialize_by(client_id: sample_client.id, service_date: service_date)
   reservation.assign_attributes(

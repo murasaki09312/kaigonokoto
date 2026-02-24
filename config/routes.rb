@@ -6,12 +6,12 @@ Rails.application.routes.draw do
   post "/auth/logout", to: "auth#logout"
   post "/api/v1/reservations/generate", to: "reservations#generate"
 
-  resources :tenants, only: [:index, :create]
-  resources :users, only: [:index, :create, :show, :update]
-  resources :clients, only: [:index, :show, :create, :update, :destroy] do
-    resources :contracts, only: [:index, :show, :create, :update]
+  resources :tenants, only: [ :index, :create ]
+  resources :users, only: [ :index, :create, :show, :update ]
+  resources :clients, only: [ :index, :show, :create, :update, :destroy ] do
+    resources :contracts, only: [ :index, :show, :create, :update ]
   end
-  resources :reservations, only: [:index, :show, :create, :update, :destroy] do
+  resources :reservations, only: [ :index, :show, :create, :update, :destroy ] do
     collection do
       post :generate
     end

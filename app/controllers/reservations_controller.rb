@@ -1,5 +1,5 @@
 class ReservationsController < ApplicationController
-  before_action :set_reservation, only: [:show, :update, :destroy]
+  before_action :set_reservation, only: [ :show, :update, :destroy ]
 
   def index
     authorize Reservation, :index?, policy_class: ReservationPolicy
@@ -159,11 +159,11 @@ class ReservationsController < ApplicationController
   def parse_range_params
     from = params[:from].present? ? parse_iso_date(params[:from], "from") : Date.current
     to = params[:to].present? ? parse_iso_date(params[:to], "to") : from
-    return [from, to] if performed?
-    return [from, to] if to >= from
+    return [ from, to ] if performed?
+    return [ from, to ] if to >= from
 
     render_error("bad_request", "to must be on or after from", :bad_request)
-    [nil, nil]
+    [ nil, nil ]
   end
 
   def parse_iso_date(value, field_name)
@@ -201,9 +201,9 @@ class ReservationsController < ApplicationController
     end
 
     ActiveRecord::Base.transaction do
-      with_capacity_lock!([reservation.service_date]) do
+      with_capacity_lock!([ reservation.service_date ]) do
         if capacity_exceeded_on?(reservation.service_date, exclude_id: exclude_id)
-          render_capacity_exceeded([reservation.service_date])
+          render_capacity_exceeded([ reservation.service_date ])
           raise ActiveRecord::Rollback
         end
 

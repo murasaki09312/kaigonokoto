@@ -6,13 +6,13 @@ RSpec.describe "Clients", type: :request do
 
   let!(:admin_role) do
     role = Role.create!(name: "admin")
-    role.permissions = [clients_read, clients_manage]
+    role.permissions = [ clients_read, clients_manage ]
     role
   end
 
   let!(:staff_role) do
     role = Role.create!(name: "staff")
-    role.permissions = [clients_read]
+    role.permissions = [ clients_read ]
     role
   end
 
@@ -25,7 +25,7 @@ RSpec.describe "Clients", type: :request do
       email: "admin@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [admin_role]
+      roles: [ admin_role ]
     )
   end
 
@@ -35,7 +35,7 @@ RSpec.describe "Clients", type: :request do
       email: "staff@a.example.com",
       password: "Password123!",
       password_confirmation: "Password123!",
-      roles: [staff_role]
+      roles: [ staff_role ]
     )
   end
 
@@ -125,7 +125,7 @@ RSpec.describe "Clients", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("meta", "total")).to eq(1)
-      expect(json_body.fetch("clients").map { |c| c.fetch("id") }).to eq([tenant_a_client.id])
+      expect(json_body.fetch("clients").map { |c| c.fetch("id") }).to eq([ tenant_a_client.id ])
     end
   end
 

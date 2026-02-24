@@ -14,7 +14,7 @@ class Contract < ApplicationRecord
   validates :start_on, presence: true
   validates :weekdays, presence: true
   validates :weekdays, length: { minimum: 1 }
-  validates :shuttle_required, inclusion: { in: [true, false] }
+  validates :shuttle_required, inclusion: { in: [ true, false ] }
   validate :end_on_after_start_on
   validate :weekdays_must_be_valid
   validate :services_must_be_hash

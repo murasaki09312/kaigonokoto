@@ -120,6 +120,38 @@ class ApplicationController < ActionController::API
     }
   end
 
+  def attendance_response(attendance)
+    {
+      id: attendance.id,
+      tenant_id: attendance.tenant_id,
+      reservation_id: attendance.reservation_id,
+      status: attendance.status,
+      absence_reason: attendance.absence_reason,
+      contacted_at: attendance.contacted_at,
+      note: attendance.note,
+      created_at: attendance.created_at,
+      updated_at: attendance.updated_at
+    }
+  end
+
+  def care_record_response(care_record)
+    {
+      id: care_record.id,
+      tenant_id: care_record.tenant_id,
+      reservation_id: care_record.reservation_id,
+      recorded_by_user_id: care_record.recorded_by_user_id,
+      body_temperature: care_record.body_temperature,
+      systolic_bp: care_record.systolic_bp,
+      diastolic_bp: care_record.diastolic_bp,
+      pulse: care_record.pulse,
+      spo2: care_record.spo2,
+      care_note: care_record.care_note,
+      handoff_note: care_record.handoff_note,
+      created_at: care_record.created_at,
+      updated_at: care_record.updated_at
+    }
+  end
+
   def render_validation_error(record)
     render_error("validation_error", record.errors.full_messages.to_sentence, :unprocessable_entity)
   end

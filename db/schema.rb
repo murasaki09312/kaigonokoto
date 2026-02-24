@@ -10,10 +10,45 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_19_001100) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_24_161100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "attendances", force: :cascade do |t|
+    t.text "absence_reason"
+    t.datetime "contacted_at"
+    t.datetime "created_at", null: false
+    t.text "note"
+    t.bigint "reservation_id", null: false
+    t.integer "status", default: 0, null: false
+    t.bigint "tenant_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reservation_id"], name: "index_attendances_on_reservation_id"
+    t.index ["tenant_id", "reservation_id"], name: "index_attendances_on_tenant_id_and_reservation_id", unique: true
+    t.index ["tenant_id", "status"], name: "index_attendances_on_tenant_id_and_status"
+    t.index ["tenant_id"], name: "index_attendances_on_tenant_id"
+  end
+
+  create_table "care_records", force: :cascade do |t|
+    t.decimal "body_temperature", precision: 4, scale: 1
+    t.text "care_note"
+    t.datetime "created_at", null: false
+    t.integer "diastolic_bp"
+    t.text "handoff_note"
+    t.integer "pulse"
+    t.bigint "recorded_by_user_id"
+    t.bigint "reservation_id", null: false
+    t.integer "spo2"
+    t.integer "systolic_bp"
+    t.bigint "tenant_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recorded_by_user_id"], name: "index_care_records_on_recorded_by_user_id"
+    t.index ["reservation_id"], name: "index_care_records_on_reservation_id"
+    t.index ["tenant_id", "reservation_id"], name: "index_care_records_on_tenant_id_and_reservation_id", unique: true
+    t.index ["tenant_id", "updated_at"], name: "index_care_records_on_tenant_id_and_updated_at"
+    t.index ["tenant_id"], name: "index_care_records_on_tenant_id"
+  end
 
   create_table "clients", force: :cascade do |t|
     t.string "address"
@@ -124,6 +159,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_19_001100) do
     t.index ["tenant_id"], name: "index_users_on_tenant_id"
   end
 
+  add_foreign_key "attendances", "reservations"
+  add_foreign_key "attendances", "tenants"
+  add_foreign_key "care_records", "reservations"
+  add_foreign_key "care_records", "tenants"
+  add_foreign_key "care_records", "users", column: "recorded_by_user_id"
   add_foreign_key "clients", "tenants"
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "tenants"

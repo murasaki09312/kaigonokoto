@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { canAccessPath, resolvePostLoginPath } from "./post-login-path";
 
 describe("canAccessPath", () => {
+  it("allows today board path with today_board:read", () => {
+    expect(canAccessPath("/app/today-board", ["today_board:read"])).toBe(true);
+  });
+
   it("allows operations path with clients:read", () => {
     expect(canAccessPath("/app/clients", ["clients:read"])).toBe(true);
   });
@@ -27,6 +31,15 @@ describe("resolvePostLoginPath", () => {
         permissions: ["users:read"],
       }),
     ).toBe("/app/users?tab=all");
+  });
+
+  it("returns requested today board path when permitted", () => {
+    expect(
+      resolvePostLoginPath({
+        requestedPath: "/app/today-board",
+        permissions: ["today_board:read"],
+      }),
+    ).toBe("/app/today-board");
   });
 
   it("falls back to operations path when no requested path", () => {

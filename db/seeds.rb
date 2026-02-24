@@ -10,6 +10,9 @@ permission_keys = [
   "clients:manage",
   "contracts:read",
   "contracts:manage",
+  "today_board:read",
+  "attendances:manage",
+  "care_records:manage",
   "reservations:read",
   "reservations:manage",
   "reservations:override_capacity",
@@ -29,6 +32,9 @@ staff_role.permissions = [
   permissions.fetch("users:read"),
   permissions.fetch("clients:read"),
   permissions.fetch("contracts:read"),
+  permissions.fetch("today_board:read"),
+  permissions.fetch("attendances:manage"),
+  permissions.fetch("care_records:manage"),
   permissions.fetch("reservations:read")
 ]
 
@@ -103,4 +109,24 @@ sample_dates.each_with_index do |service_date, index|
     notes: index.zero? ? "定期利用サンプル" : "翌日利用サンプル"
   )
   reservation.save!
+end
+
+today_reservation = tenant.reservations.find_by(service_date: Date.current, client_id: sample_client.id)
+if today_reservation
+  attendance = tenant.attendances.find_or_initialize_by(reservation: today_reservation)
+  attendance.assign_attributes(status: :present, note: "到着済みサンプル")
+  attendance.save!
+
+  care_record = tenant.care_records.find_or_initialize_by(reservation: today_reservation)
+  care_record.assign_attributes(
+    recorded_by_user: staff_user,
+    body_temperature: 36.6,
+    systolic_bp: 118,
+    diastolic_bp: 72,
+    pulse: 68,
+    spo2: 98,
+    care_note: "バイタル良好",
+    handoff_note: "特記事項なし"
+  )
+  care_record.save!
 end

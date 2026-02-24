@@ -8,6 +8,7 @@ import { UsersPage } from "@/pages/users-page";
 import { ClientsPage } from "@/pages/clients-page";
 import { ClientDetailPage } from "@/pages/client-detail-page";
 import { ReservationsPage } from "@/pages/reservations-page";
+import { TodayBoardPage } from "@/pages/today-board-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/app" element={<AppShell />}>
             <Route index element={<DashboardPage />} />
+            <Route path="today-board" element={<TodayBoardPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
             <Route path="reservations" element={<ReservationsPage />} />

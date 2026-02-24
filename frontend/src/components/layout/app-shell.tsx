@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   CalendarCheck2,
   Car,
+  ClipboardCheck,
   ClipboardList,
   Home,
   Menu,
@@ -37,16 +38,18 @@ type NavItem = {
 
 const coreNav: NavItem[] = [
   { label: "ダッシュボード", to: "/app", icon: Home },
+  { label: "当日ボード", to: "/app/today-board", icon: ClipboardList },
   { label: "利用者", to: "/app/clients", icon: Users },
   { label: "予約", to: "/app/reservations", icon: CalendarCheck2 },
   { label: "送迎", icon: Car, disabled: true },
-  { label: "記録", icon: ClipboardList, disabled: true },
+  { label: "記録", icon: ClipboardCheck, disabled: true },
   { label: "請求", icon: Wallet, disabled: true },
   { label: "ユーザー管理", to: "/app/users", icon: Users },
 ];
 
 const pageTitleMap: Record<string, string> = {
   "/app": "ダッシュボード",
+  "/app/today-board": "当日ボード",
   "/app/clients": "利用者",
   "/app/reservations": "予約",
   "/app/users": "ユーザー管理",

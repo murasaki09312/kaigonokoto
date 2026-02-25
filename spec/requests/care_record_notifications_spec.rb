@@ -89,4 +89,36 @@ RSpec.describe "Care record notifications", type: :request do
 
     expect(response).to have_http_status(:ok)
   end
+
+  it "returns 200 and keeps care_record persisted when event publish fails" do
+    allow(CareRecordHandoffEventPublisher).to receive(:publish!).and_raise(StandardError, "publisher failure")
+    allow(NotifyFamilyByLineJob).to receive(:perform_later)
+
+    put "/api/v1/reservations/#{reservation.id}/care_record", params: {
+      handoff_note: "通知失敗でも保存される"
+    }, as: :json, headers: auth_headers_for(user)
+
+    expect(response).to have_http_status(:ok)
+    expect(reservation.reload.care_record&.handoff_note).to eq("通知失敗でも保存される")
+    expect(NotifyFamilyByLineJob).to have_received(:perform_later).with(
+      hash_including(
+        :event_id,
+        tenant_id: tenant.id,
+        reservation_id: reservation.id,
+        care_record_id: reservation.reload.care_record&.id
+      )
+    )
+  end
+
+  it "returns 200 when both publish and fallback enqueue fail" do
+    allow(CareRecordHandoffEventPublisher).to receive(:publish!).and_raise(StandardError, "publisher failure")
+    allow(NotifyFamilyByLineJob).to receive(:perform_later).and_raise(StandardError, "queue down")
+
+    put "/api/v1/reservations/#{reservation.id}/care_record", params: {
+      handoff_note: "フォールバックも失敗"
+    }, as: :json, headers: auth_headers_for(user)
+
+    expect(response).to have_http_status(:ok)
+    expect(reservation.reload.care_record&.handoff_note).to eq("フォールバックも失敗")
+  end
 end

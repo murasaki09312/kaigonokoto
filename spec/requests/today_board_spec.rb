@@ -127,6 +127,49 @@ RSpec.describe "TodayBoard", type: :request do
       expect(item.dig("care_record", "care_note")).to eq("バイタル安定")
     end
 
+    it "returns line notification availability and latest line notification summary" do
+      care_record = tenant_a.care_records.create!(
+        tenant: tenant_a,
+        reservation: tenant_a_reservation,
+        recorded_by_user: board_manager_user,
+        handoff_note: "申し送りメモ"
+      )
+
+      tenant_a.family_members.create!(
+        client: tenant_a_client,
+        name: "家族A",
+        relationship: "長男",
+        line_user_id: "Utoday-board-spec-#{SecureRandom.hex(4)}",
+        line_enabled: true,
+        active: true
+      )
+
+      tenant_a.notification_logs.create!(
+        client: tenant_a_client,
+        family_member: tenant_a.family_members.first,
+        event_name: CareRecordHandoffEventPublisher::EVENT_NAME,
+        source_type: "CareRecord",
+        source_id: care_record.id,
+        channel: :line,
+        status: :failed,
+        error_code: "line_api_error",
+        error_message: "LINE gateway error",
+        idempotency_key: "today-board-line-log-#{SecureRandom.hex(8)}"
+      )
+
+      get "/api/v1/today_board", params: { date: target_date.to_s }, headers: auth_headers_for(board_reader_user)
+
+      expect(response).to have_http_status(:ok)
+      item = json_body.fetch("items").first
+
+      expect(item.fetch("line_notification_available")).to eq(true)
+      expect(item.fetch("line_linked_family_count")).to eq(1)
+      expect(item.fetch("line_enabled_family_count")).to eq(1)
+      expect(item.dig("line_notification", "status")).to eq("failed")
+      expect(item.dig("line_notification", "failed_count")).to eq(1)
+      expect(item.dig("line_notification", "last_error_code")).to eq("line_api_error")
+    end
+
     it "returns 403 without today_board:read permission" do
       get "/api/v1/today_board", params: { date: target_date.to_s }, headers: auth_headers_for(no_access_user)
 

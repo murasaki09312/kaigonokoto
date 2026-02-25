@@ -42,7 +42,7 @@ const coreNav: NavItem[] = [
   { label: "利用者", to: "/app/clients", icon: Users },
   { label: "予約", to: "/app/reservations", icon: CalendarCheck2 },
   { label: "送迎", to: "/app/shuttle", icon: Car },
-  { label: "記録", icon: ClipboardCheck, disabled: true },
+  { label: "記録", to: "/app/records", icon: ClipboardCheck },
   { label: "請求", to: "/app/invoices", icon: Wallet },
   { label: "ユーザー管理", to: "/app/users", icon: Users },
 ];
@@ -53,6 +53,7 @@ const pageTitleMap: Record<string, string> = {
   "/app/clients": "利用者",
   "/app/reservations": "予約",
   "/app/shuttle": "送迎",
+  "/app/records": "記録",
   "/app/invoices": "請求",
   "/app/users": "ユーザー管理",
 };

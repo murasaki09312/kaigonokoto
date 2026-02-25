@@ -30,10 +30,26 @@ export type CareRecord = {
   updated_at: string;
 };
 
+export type LineNotificationStatus = "queued" | "sent" | "failed" | "skipped" | "unsent";
+
+export type LineNotificationSummary = {
+  status: LineNotificationStatus;
+  total_count: number;
+  sent_count: number;
+  failed_count: number;
+  last_error_code: string | null;
+  last_error_message: string | null;
+  updated_at: string | null;
+};
+
 export type TodayBoardItem = {
   reservation: Reservation;
   attendance: Attendance | null;
   care_record: CareRecord | null;
+  line_notification: LineNotificationSummary | null;
+  line_notification_available: boolean;
+  line_linked_family_count: number;
+  line_enabled_family_count: number;
 };
 
 export type TodayBoardMeta = {
@@ -64,4 +80,5 @@ export type CareRecordPayload = {
   spo2?: number | null;
   care_note?: string | null;
   handoff_note?: string | null;
+  send_line_notification?: boolean;
 };

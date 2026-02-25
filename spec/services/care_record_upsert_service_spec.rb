@@ -37,7 +37,7 @@ RSpec.describe CareRecordUpsertService, type: :service do
     )
   end
 
-  it "publishes a handoff_note event when a note is newly added" do
+  it "publishes a handoff_note event when notification is explicitly requested" do
     captured_payloads = capture_handoff_events do
       described_class.new(
         tenant: tenant,
@@ -46,7 +46,8 @@ RSpec.describe CareRecordUpsertService, type: :service do
         attributes: {
           care_note: "午前は体操",
           handoff_note: "食後の服薬確認済み"
-        }
+        },
+        send_line_notification: true
       ).call
     end
 
@@ -61,7 +62,7 @@ RSpec.describe CareRecordUpsertService, type: :service do
     expect(payload[:event_id]).to be_present
   end
 
-  it "does not publish an event when handoff_note is unchanged" do
+  it "does not publish an event when notification is not requested" do
     tenant.care_records.create!(
       reservation: reservation,
       recorded_by_user: actor_user,
@@ -77,11 +78,37 @@ RSpec.describe CareRecordUpsertService, type: :service do
         attributes: {
           care_note: "更新のみ",
           handoff_note: "既存メモ"
-        }
+        },
+        send_line_notification: false
       ).call
     end
 
     expect(captured_payloads).to eq([])
+  end
+
+  it "publishes an event even when handoff_note text is unchanged if notification is requested" do
+    tenant.care_records.create!(
+      reservation: reservation,
+      recorded_by_user: actor_user,
+      handoff_note: "同文通知",
+      care_note: "初回"
+    )
+
+    captured_payloads = capture_handoff_events do
+      described_class.new(
+        tenant: tenant,
+        reservation: reservation,
+        actor_user: actor_user,
+        attributes: {
+          handoff_note: "同文通知",
+          care_note: "更新のみ"
+        },
+        send_line_notification: true
+      ).call
+    end
+
+    expect(captured_payloads.size).to eq(1)
+    expect(captured_payloads.first[:handoff_note]).to eq("同文通知")
   end
 
   it "does not publish an event when handoff_note is blank" do
@@ -92,7 +119,8 @@ RSpec.describe CareRecordUpsertService, type: :service do
         actor_user: actor_user,
         attributes: {
           care_note: "メモのみ更新"
-        }
+        },
+        send_line_notification: true
       ).call
     end
 

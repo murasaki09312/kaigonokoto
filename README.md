@@ -255,6 +255,22 @@ curl -s -X PUT "http://localhost:3000/api/v1/reservations/1/care_record" \
   -d '{"body_temperature":36.6,"care_note":"バイタル安定"}'
 ```
 
+## Handoff LINE Notification (Event-driven)
+
+- `CareRecordUpsertService` は `handoff_note` が新規/更新された時だけ
+  `care_record.handoff_note_changed` を発行します。
+- Subscriber が `NotifyFamilyByLineJob` を enqueue し、Job が `LineMessagingClient` 経由で LINE API を呼びます。
+- Care Record 保存トランザクション中に外部APIは呼びません。
+
+必要な環境変数:
+
+```bash
+export LINE_CHANNEL_ACCESS_TOKEN=<LINE Messaging API token>
+```
+
+送信先は `family_members.line_user_id`（`line_enabled = true` かつ `active = true`）です。
+送信結果は `notification_logs` に `queued/sent/failed/skipped` で記録されます。
+
 ## RBAC Design
 
 - `Role` はグローバル

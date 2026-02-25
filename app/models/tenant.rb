@@ -10,6 +10,8 @@ class Tenant < ApplicationRecord
   has_many :price_items, dependent: :restrict_with_exception
   has_many :invoices, dependent: :restrict_with_exception
   has_many :invoice_lines, dependent: :restrict_with_exception
+  has_many :family_members, dependent: :restrict_with_exception
+  has_many :notification_logs, dependent: :restrict_with_exception
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true

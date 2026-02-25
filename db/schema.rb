@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_26_010310) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -88,6 +88,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
     t.exclusion_constraint "tenant_id WITH =, client_id WITH =, daterange(start_on, COALESCE((end_on + 1), 'infinity'::date), '[)'::text) WITH &&", using: :gist, name: "contracts_no_overlapping_periods"
   end
 
+  create_table "family_members", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "client_id", null: false
+    t.datetime "created_at", null: false
+    t.boolean "line_enabled", default: false, null: false
+    t.string "line_user_id"
+    t.string "name", null: false
+    t.boolean "primary_contact", default: false, null: false
+    t.string "relationship"
+    t.bigint "tenant_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_family_members_on_client_id"
+    t.index ["tenant_id", "active"], name: "index_family_members_on_tenant_id_and_active"
+    t.index ["tenant_id", "client_id"], name: "index_family_members_on_tenant_id_and_client_id"
+    t.index ["tenant_id", "line_user_id"], name: "index_family_members_on_tenant_and_line_user_id", unique: true, where: "((line_user_id IS NOT NULL) AND (btrim((line_user_id)::text) <> ''::text))"
+    t.index ["tenant_id"], name: "index_family_members_on_tenant_id"
+    t.check_constraint "NOT line_enabled OR line_user_id IS NOT NULL AND btrim(line_user_id::text) <> ''::text", name: "family_members_line_enabled_requires_line_user_id"
+  end
+
   create_table "invoice_lines", force: :cascade do |t|
     t.bigint "attendance_id"
     t.datetime "created_at", null: false
@@ -127,6 +146,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
     t.index ["tenant_id", "client_id", "billing_month"], name: "index_invoices_on_tenant_id_and_client_id_and_billing_month", unique: true
     t.index ["tenant_id", "status"], name: "index_invoices_on_tenant_id_and_status"
     t.index ["tenant_id"], name: "index_invoices_on_tenant_id"
+  end
+
+  create_table "notification_logs", force: :cascade do |t|
+    t.integer "channel", default: 0, null: false
+    t.bigint "client_id", null: false
+    t.datetime "created_at", null: false
+    t.string "error_code"
+    t.text "error_message"
+    t.string "event_name", null: false
+    t.bigint "family_member_id"
+    t.string "idempotency_key", null: false
+    t.text "message_body"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "provider_message_id"
+    t.bigint "source_id", null: false
+    t.string "source_type", null: false
+    t.integer "status", default: 0, null: false
+    t.bigint "tenant_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_notification_logs_on_client_id"
+    t.index ["family_member_id"], name: "index_notification_logs_on_family_member_id"
+    t.index ["tenant_id", "idempotency_key"], name: "index_notification_logs_on_tenant_id_and_idempotency_key", unique: true
+    t.index ["tenant_id", "source_type", "source_id"], name: "idx_on_tenant_id_source_type_source_id_fe8d782863"
+    t.index ["tenant_id", "status", "created_at"], name: "index_notification_logs_on_tenant_id_and_status_and_created_at"
+    t.index ["tenant_id"], name: "index_notification_logs_on_tenant_id"
   end
 
   create_table "permissions", force: :cascade do |t|
@@ -261,6 +305,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
   add_foreign_key "clients", "tenants"
   add_foreign_key "contracts", "clients"
   add_foreign_key "contracts", "tenants"
+  add_foreign_key "family_members", "clients"
+  add_foreign_key "family_members", "tenants"
   add_foreign_key "invoice_lines", "attendances"
   add_foreign_key "invoice_lines", "invoices"
   add_foreign_key "invoice_lines", "price_items"
@@ -268,6 +314,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_010200) do
   add_foreign_key "invoices", "clients"
   add_foreign_key "invoices", "tenants"
   add_foreign_key "invoices", "users", column: "generated_by_user_id"
+  add_foreign_key "notification_logs", "clients"
+  add_foreign_key "notification_logs", "family_members", on_delete: :nullify
+  add_foreign_key "notification_logs", "tenants"
   add_foreign_key "price_items", "tenants"
   add_foreign_key "reservations", "clients"
   add_foreign_key "reservations", "tenants"

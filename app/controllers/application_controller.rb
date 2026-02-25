@@ -69,6 +69,8 @@ class ApplicationController < ActionController::API
   end
 
   def client_response(client)
+    line_summary = client_line_summary(client)
+
     {
       id: client.id,
       tenant_id: client.tenant_id,
@@ -82,6 +84,9 @@ class ApplicationController < ActionController::API
       emergency_contact_phone: client.emergency_contact_phone,
       notes: client.notes,
       status: client.status,
+      line_notification_available: line_summary.fetch(:line_notification_available),
+      line_linked_family_count: line_summary.fetch(:line_linked_family_count),
+      line_enabled_family_count: line_summary.fetch(:line_enabled_family_count),
       created_at: client.created_at,
       updated_at: client.updated_at
     }
@@ -149,6 +154,20 @@ class ApplicationController < ActionController::API
       handoff_note: care_record.handoff_note,
       created_at: care_record.created_at,
       updated_at: care_record.updated_at
+    }
+  end
+
+  def line_notification_response(notification_summary)
+    return nil if notification_summary.blank?
+
+    {
+      status: notification_summary[:status],
+      total_count: notification_summary[:total_count],
+      sent_count: notification_summary[:sent_count],
+      failed_count: notification_summary[:failed_count],
+      last_error_code: notification_summary[:last_error_code],
+      last_error_message: notification_summary[:last_error_message],
+      updated_at: notification_summary[:updated_at]
     }
   end
 
@@ -245,6 +264,25 @@ class ApplicationController < ActionController::API
       note: nil,
       created_at: nil,
       updated_at: nil
+    }
+  end
+
+  def client_line_summary(client)
+    family_members = if client.association(:family_members).loaded?
+      client.family_members.to_a
+    else
+      client.family_members.to_a
+    end
+
+    linked_family_count = family_members.count { |family_member| family_member.line_user_id.present? }
+    enabled_family_count = family_members.count do |family_member|
+      family_member.active? && family_member.line_enabled? && family_member.line_user_id.present?
+    end
+
+    {
+      line_notification_available: enabled_family_count.positive?,
+      line_linked_family_count: linked_family_count,
+      line_enabled_family_count: enabled_family_count
     }
   end
 end

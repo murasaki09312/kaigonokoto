@@ -10,7 +10,8 @@ module Api
           tenant: current_tenant,
           reservation: @reservation,
           actor_user: current_user,
-          attributes: care_record_params.to_h
+          attributes: care_record_params.to_h,
+          send_line_notification: send_line_notification_param
         ).call
 
         render json: { care_record: care_record_response(care_record) }, status: :ok
@@ -36,6 +37,10 @@ module Api
           :care_note,
           :handoff_note
         )
+      end
+
+      def send_line_notification_param
+        ActiveModel::Type::Boolean.new.cast(params[:send_line_notification])
       end
     end
   end

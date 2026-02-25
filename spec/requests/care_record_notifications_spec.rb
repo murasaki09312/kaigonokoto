@@ -53,29 +53,43 @@ RSpec.describe "Care record notifications", type: :request do
     ActiveJob::Base.queue_adapter = original_adapter
   end
 
-  it "enqueues NotifyFamilyByLineJob when handoff_note is added" do
+  it "enqueues NotifyFamilyByLineJob when handoff_note is added and send_line_notification is true" do
     expect do
       put "/api/v1/reservations/#{reservation.id}/care_record", params: {
-        handoff_note: "家族へ服薬状況を共有"
+        handoff_note: "家族へ服薬状況を共有",
+        send_line_notification: true
       }, as: :json, headers: auth_headers_for(user)
     end.to have_enqueued_job(NotifyFamilyByLineJob)
 
     expect(response).to have_http_status(:ok)
   end
 
-  it "does not enqueue NotifyFamilyByLineJob when only care_note is updated" do
+  it "does not enqueue NotifyFamilyByLineJob when send_line_notification is false" do
     expect do
       put "/api/v1/reservations/#{reservation.id}/care_record", params: {
-        care_note: "日中は安定"
+        handoff_note: "送信しない申し送り",
+        send_line_notification: false
       }, as: :json, headers: auth_headers_for(user)
     end.not_to have_enqueued_job(NotifyFamilyByLineJob)
 
     expect(response).to have_http_status(:ok)
   end
 
-  it "does not enqueue when handoff_note is unchanged" do
+  it "does not enqueue when handoff_note is blank even if send_line_notification is true" do
+    expect do
+      put "/api/v1/reservations/#{reservation.id}/care_record", params: {
+        care_note: "日中は安定",
+        send_line_notification: true
+      }, as: :json, headers: auth_headers_for(user)
+    end.not_to have_enqueued_job(NotifyFamilyByLineJob)
+
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "enqueues when handoff_note is unchanged but send_line_notification is true" do
     put "/api/v1/reservations/#{reservation.id}/care_record", params: {
-      handoff_note: "変化なし"
+      handoff_note: "変化なし",
+      send_line_notification: false
     }, as: :json, headers: auth_headers_for(user)
 
     clear_enqueued_jobs
@@ -83,9 +97,10 @@ RSpec.describe "Care record notifications", type: :request do
     expect do
       put "/api/v1/reservations/#{reservation.id}/care_record", params: {
         handoff_note: "変化なし",
-        care_note: "更新のみ"
+        care_note: "更新のみ",
+        send_line_notification: true
       }, as: :json, headers: auth_headers_for(user)
-    end.not_to have_enqueued_job(NotifyFamilyByLineJob)
+    end.to have_enqueued_job(NotifyFamilyByLineJob)
 
     expect(response).to have_http_status(:ok)
   end
@@ -95,7 +110,8 @@ RSpec.describe "Care record notifications", type: :request do
     allow(NotifyFamilyByLineJob).to receive(:perform_later)
 
     put "/api/v1/reservations/#{reservation.id}/care_record", params: {
-      handoff_note: "通知失敗でも保存される"
+      handoff_note: "通知失敗でも保存される",
+      send_line_notification: true
     }, as: :json, headers: auth_headers_for(user)
 
     expect(response).to have_http_status(:ok)
@@ -115,7 +131,8 @@ RSpec.describe "Care record notifications", type: :request do
     allow(NotifyFamilyByLineJob).to receive(:perform_later).and_raise(StandardError, "queue down")
 
     put "/api/v1/reservations/#{reservation.id}/care_record", params: {
-      handoff_note: "フォールバックも失敗"
+      handoff_note: "フォールバックも失敗",
+      send_line_notification: true
     }, as: :json, headers: auth_headers_for(user)
 
     expect(response).to have_http_status(:ok)

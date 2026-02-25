@@ -14,6 +14,9 @@ export type Client = {
   emergency_contact_phone: string | null;
   notes: string | null;
   status: ClientStatus;
+  line_notification_available: boolean;
+  line_linked_family_count: number;
+  line_enabled_family_count: number;
   created_at: string;
   updated_at: string;
 };

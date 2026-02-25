@@ -1,11 +1,12 @@
 class CareRecordUpsertService
   MAX_RETRIES = 1
 
-  def initialize(tenant:, reservation:, actor_user:, attributes:)
+  def initialize(tenant:, reservation:, actor_user:, attributes:, send_line_notification: false)
     @tenant = tenant
     @reservation = reservation
     @actor_user = actor_user
     @attributes = attributes
+    @send_line_notification = ActiveModel::Type::Boolean.new.cast(send_line_notification)
   end
 
   def call
@@ -17,14 +18,13 @@ class CareRecordUpsertService
 
       @reservation.with_lock do
         care_record = @tenant.care_records.find_or_initialize_by(reservation_id: @reservation.id)
-        before_handoff_note = normalized_note(care_record.handoff_note)
 
         care_record.assign_attributes(@attributes)
         care_record.recorded_by_user = @actor_user
         care_record.save!
 
         after_handoff_note = normalized_note(care_record.handoff_note)
-        if handoff_note_changed?(before: before_handoff_note, after: after_handoff_note)
+        if should_publish_handoff_event?(handoff_note: after_handoff_note)
           event_payload = CareRecordHandoffEventPublisher.build_payload(
             tenant: @tenant,
             reservation: @reservation,
@@ -82,8 +82,8 @@ class CareRecordUpsertService
     )
   end
 
-  def handoff_note_changed?(before:, after:)
-    after.present? && before != after
+  def should_publish_handoff_event?(handoff_note:)
+    @send_line_notification && handoff_note.present?
   end
 
   def normalized_note(note)

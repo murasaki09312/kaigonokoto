@@ -6,6 +6,10 @@ describe("canAccessPath", () => {
     expect(canAccessPath("/app/today-board", ["today_board:read"])).toBe(true);
   });
 
+  it("allows records path with today_board:read", () => {
+    expect(canAccessPath("/app/records", ["today_board:read"])).toBe(true);
+  });
+
   it("allows operations path with clients:read", () => {
     expect(canAccessPath("/app/clients", ["clients:read"])).toBe(true);
   });
@@ -52,6 +56,10 @@ describe("resolvePostLoginPath", () => {
 
   it("falls back to operations path when no requested path", () => {
     expect(resolvePostLoginPath({ permissions: ["clients:read"] })).toBe("/app/clients");
+  });
+
+  it("falls back to records when only today_board:read is available", () => {
+    expect(resolvePostLoginPath({ permissions: ["today_board:read"] })).toBe("/app/records");
   });
 
   it("falls back to reservations when clients page is not allowed", () => {

@@ -129,6 +129,51 @@ RSpec.describe "Clients", type: :request do
     end
   end
 
+  describe "line linkage summary" do
+    it "returns line notification fields on index and show" do
+      tenant_a.family_members.create!(
+        client: tenant_a_client,
+        name: "連携家族",
+        relationship: "長女",
+        line_user_id: "Uclients-spec-linked-#{SecureRandom.hex(4)}",
+        line_enabled: true,
+        active: true,
+        primary_contact: true
+      )
+      tenant_a.family_members.create!(
+        client: tenant_a_client,
+        name: "休止中家族",
+        relationship: "次女",
+        line_user_id: "Uclients-spec-inactive-#{SecureRandom.hex(4)}",
+        line_enabled: true,
+        active: false
+      )
+      tenant_a.family_members.create!(
+        client: tenant_a_client,
+        name: "未連携家族",
+        relationship: "長男",
+        line_enabled: false,
+        active: true
+      )
+
+      get "/clients", headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:ok)
+      listed_client = json_body.fetch("clients").first
+      expect(listed_client.fetch("line_notification_available")).to eq(true)
+      expect(listed_client.fetch("line_linked_family_count")).to eq(2)
+      expect(listed_client.fetch("line_enabled_family_count")).to eq(1)
+
+      get "/clients/#{tenant_a_client.id}", headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:ok)
+      shown_client = json_body.fetch("client")
+      expect(shown_client.fetch("line_notification_available")).to eq(true)
+      expect(shown_client.fetch("line_linked_family_count")).to eq(2)
+      expect(shown_client.fetch("line_enabled_family_count")).to eq(1)
+    end
+  end
+
   describe "validation" do
     it "returns 422 when name is missing" do
       post "/clients", params: {

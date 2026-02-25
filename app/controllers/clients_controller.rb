@@ -5,6 +5,7 @@ class ClientsController < ApplicationController
     clients = clients.order(updated_at: :desc)
     clients = apply_status_filter(clients)
     clients = apply_search_filter(clients)
+    clients = clients.includes(:family_members)
 
     render json: {
       clients: clients.map { |client| client_response(client) },
@@ -13,7 +14,7 @@ class ClientsController < ApplicationController
   end
 
   def show
-    client = current_tenant.clients.find(params[:id])
+    client = current_tenant.clients.includes(:family_members).find(params[:id])
     authorize client, :show?, policy_class: ClientPolicy
 
     render json: { client: client_response(client) }, status: :ok

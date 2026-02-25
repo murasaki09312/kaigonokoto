@@ -39,7 +39,10 @@ export function FamilyLineLinkDialog({
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
 
   const lineBotIdRaw = String(import.meta.env.VITE_LINE_BOT_ID ?? "").trim();
-  const lineBotId = lineBotIdRaw.replace(/^@/, "");
+  const lineBotId = lineBotIdRaw
+    ? (lineBotIdRaw.startsWith("@") ? lineBotIdRaw : `@${lineBotIdRaw}`)
+    : "";
+  const encodedLineBotId = lineBotId ? encodeURIComponent(lineBotId) : "";
 
   const invitationMutation = useMutation({
     mutationFn: () => issueFamilyLineInvitation(clientId, familyMember.id),
@@ -53,10 +56,10 @@ export function FamilyLineLinkDialog({
   });
 
   const lineMessageUrl = useMemo(() => {
-    if (!invitationToken || !lineBotId) return null;
+    if (!invitationToken || !encodedLineBotId) return null;
     const message = `連携コード:${invitationToken}`;
-    return `https://line.me/R/oaMessage/${lineBotId}/?${encodeURIComponent(message)}`;
-  }, [invitationToken, lineBotId]);
+    return `https://line.me/R/oaMessage/${encodedLineBotId}/?${encodeURIComponent(message)}`;
+  }, [invitationToken, encodedLineBotId]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -111,7 +114,7 @@ export function FamilyLineLinkDialog({
           <div className="rounded-xl border border-border/70 p-4 text-sm text-muted-foreground">
             連携コードを発行しています...
           </div>
-        ) : !lineBotId ? (
+        ) : !encodedLineBotId ? (
           <div className="rounded-xl border border-border/70 p-4 text-sm text-muted-foreground">
             `VITE_LINE_BOT_ID` が未設定です。環境変数を設定してください。
           </div>

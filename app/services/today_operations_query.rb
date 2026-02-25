@@ -59,10 +59,20 @@ class TodayOperationsQuery
   end
 
   def summarize_line_notifications(logs)
-    sent_count = logs.count(&:status_sent?)
-    failed_logs = logs.select(&:status_failed?)
-    queued_count = logs.count(&:status_queued?)
-    skipped_count = logs.count(&:status_skipped?)
+    latest_log = logs.first
+    return default_line_notification_summary if latest_log.blank?
+
+    latest_event_id = event_id_from_idempotency_key(latest_log.idempotency_key)
+    event_logs = if latest_event_id.present?
+      logs.select { |log| event_id_from_idempotency_key(log.idempotency_key) == latest_event_id }
+    else
+      [ latest_log ]
+    end
+
+    sent_count = event_logs.count(&:status_sent?)
+    failed_logs = event_logs.select(&:status_failed?)
+    queued_count = event_logs.count(&:status_queued?)
+    skipped_count = event_logs.count(&:status_skipped?)
 
     status = if failed_logs.any?
       "failed"
@@ -77,16 +87,32 @@ class TodayOperationsQuery
     end
 
     latest_failed_log = failed_logs.max_by(&:created_at)
-    latest_log = logs.first
+    latest_event_log = event_logs.max_by { |log| [ log.created_at, log.id ] }
 
     {
       status: status,
-      total_count: logs.size,
+      total_count: event_logs.size,
       sent_count: sent_count,
       failed_count: failed_logs.size,
       last_error_code: latest_failed_log&.error_code,
       last_error_message: latest_failed_log&.error_message,
-      updated_at: latest_log&.updated_at
+      updated_at: latest_event_log&.updated_at
+    }
+  end
+
+  def event_id_from_idempotency_key(idempotency_key)
+    idempotency_key.to_s.split(":", 2).first.presence
+  end
+
+  def default_line_notification_summary
+    {
+      status: "unsent",
+      total_count: 0,
+      sent_count: 0,
+      failed_count: 0,
+      last_error_code: nil,
+      last_error_message: nil,
+      updated_at: nil
     }
   end
 end

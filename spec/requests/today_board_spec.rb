@@ -170,6 +170,60 @@ RSpec.describe "TodayBoard", type: :request do
       expect(item.dig("line_notification", "last_error_code")).to eq("line_api_error")
     end
 
+    it "uses latest event status even when older failed logs exist" do
+      care_record = tenant_a.care_records.create!(
+        tenant: tenant_a,
+        reservation: tenant_a_reservation,
+        recorded_by_user: board_manager_user,
+        handoff_note: "最新送信確認"
+      )
+      family_member = tenant_a.family_members.create!(
+        client: tenant_a_client,
+        name: "家族B",
+        relationship: "次女",
+        line_user_id: "Utoday-board-latest-#{SecureRandom.hex(4)}",
+        line_enabled: true,
+        active: true
+      )
+
+      old_event_id = SecureRandom.uuid
+      new_event_id = SecureRandom.uuid
+
+      tenant_a.notification_logs.create!(
+        client: tenant_a_client,
+        family_member: family_member,
+        event_name: CareRecordHandoffEventPublisher::EVENT_NAME,
+        source_type: "CareRecord",
+        source_id: care_record.id,
+        channel: :line,
+        status: :failed,
+        error_code: "line_api_error",
+        error_message: "old failure",
+        idempotency_key: "#{old_event_id}:#{family_member.id}"
+      )
+
+      tenant_a.notification_logs.create!(
+        client: tenant_a_client,
+        family_member: family_member,
+        event_name: CareRecordHandoffEventPublisher::EVENT_NAME,
+        source_type: "CareRecord",
+        source_id: care_record.id,
+        channel: :line,
+        status: :sent,
+        idempotency_key: "#{new_event_id}:#{family_member.id}"
+      )
+
+      get "/api/v1/today_board", params: { date: target_date.to_s }, headers: auth_headers_for(board_reader_user)
+
+      expect(response).to have_http_status(:ok)
+      item = json_body.fetch("items").first
+
+      expect(item.dig("line_notification", "status")).to eq("sent")
+      expect(item.dig("line_notification", "sent_count")).to eq(1)
+      expect(item.dig("line_notification", "failed_count")).to eq(0)
+      expect(item.dig("line_notification", "last_error_code")).to be_nil
+    end
+
     it "returns 403 without today_board:read permission" do
       get "/api/v1/today_board", params: { date: target_date.to_s }, headers: auth_headers_for(no_access_user)
 

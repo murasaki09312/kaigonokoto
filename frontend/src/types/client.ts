@@ -21,6 +21,27 @@ export type Client = {
   updated_at: string;
 };
 
+export type FamilyMember = {
+  id: number;
+  tenant_id: number;
+  client_id: number;
+  name: string;
+  relationship: string | null;
+  primary_contact: boolean;
+  active: boolean;
+  line_enabled: boolean;
+  line_linked: boolean;
+  line_invitation_token_generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FamilyLineInvitation = {
+  family_member: FamilyMember;
+  line_invitation_token: string;
+  line_invitation_token_generated_at: string | null;
+};
+
 export type ClientPayload = {
   name: string;
   kana?: string;

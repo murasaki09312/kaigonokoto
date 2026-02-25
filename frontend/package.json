@@ -27,6 +27,7 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",
     "next-themes": "^0.4.6",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.1",
@@ -37,8 +38,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.0",
     "@eslint/js": "^9.39.1",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

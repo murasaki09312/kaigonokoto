@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
-import { getClient, listContracts } from "@/lib/api";
+import { getClient, listContracts, listFamilyMembers } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { ContractFormDialog } from "@/components/contracts/contract-form-dialog";
 import { formatServices, formatWeekdays } from "@/components/contracts/contract-constants";
+import { FamilyLineLinkDialog } from "@/components/clients/family-line-link-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,12 @@ export function ClientDetailPage() {
     queryKey: ["contracts", numericId],
     queryFn: () => listContracts(numericId),
     enabled: canReadContracts && isValidClientId,
+  });
+
+  const familyMembersQuery = useQuery({
+    queryKey: ["family-members", numericId],
+    queryFn: () => listFamilyMembers(numericId),
+    enabled: canReadClient && isValidClientId,
   });
 
   if (!canReadClient) {
@@ -136,6 +143,89 @@ export function ClientDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="rounded-2xl border-border/70 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">家族LINE連携</CardTitle>
+          <CardDescription>家族ごとのLINE連携状態とQR発行を管理します。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {familyMembersQuery.isPending && (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full rounded-xl" />
+              ))}
+            </div>
+          )}
+
+          {familyMembersQuery.isError && !familyMembersQuery.isPending && (
+            <div className="space-y-3 rounded-2xl border border-destructive/30 p-8 text-center">
+              <p className="font-medium">家族情報の取得に失敗しました</p>
+              <Button variant="outline" className="rounded-xl" onClick={() => familyMembersQuery.refetch()}>
+                リトライ
+              </Button>
+            </div>
+          )}
+
+          {!familyMembersQuery.isPending && !familyMembersQuery.isError && (familyMembersQuery.data?.total ?? 0) === 0 && (
+            <div className="rounded-2xl border border-dashed p-8 text-center">
+              <p className="font-medium">家族情報が未登録です</p>
+              <p className="text-sm text-muted-foreground">家族情報を登録後、LINE連携QRを発行できます。</p>
+            </div>
+          )}
+
+          {!familyMembersQuery.isPending && !familyMembersQuery.isError && (familyMembersQuery.data?.familyMembers.length ?? 0) > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-border/70">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>氏名</TableHead>
+                    <TableHead>続柄</TableHead>
+                    <TableHead>連携状態</TableHead>
+                    <TableHead>最終発行</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {familyMembersQuery.data?.familyMembers.map((familyMember) => (
+                    <TableRow key={familyMember.id}>
+                      <TableCell className="font-medium">
+                        {familyMember.name}
+                        {familyMember.primary_contact && (
+                          <Badge variant="outline" className="ml-2 rounded-full text-xs">主連絡先</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{familyMember.relationship || "-"}</TableCell>
+                      <TableCell>
+                        {familyMember.line_linked ? (
+                          <Badge variant="secondary" className="rounded-full">連携済み</Badge>
+                        ) : (
+                          <Badge variant="outline" className="rounded-full text-muted-foreground">未連携</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {familyMember.line_invitation_token_generated_at
+                          ? formatDistanceToNow(new Date(familyMember.line_invitation_token_generated_at), { addSuffix: true, locale: ja })
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <FamilyLineLinkDialog
+                          clientId={numericId}
+                          familyMember={familyMember}
+                          canManage={canManageClient}
+                          onIssued={async () => {
+                            await familyMembersQuery.refetch();
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-2xl border-border/70 shadow-sm">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

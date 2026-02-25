@@ -1,4 +1,6 @@
 class FamilyLineIntegrationService
+  TOKEN_TTL = 24.hours
+
   Result = Struct.new(:family_member, :error_code, keyword_init: true) do
     def success?
       family_member.present?
@@ -19,6 +21,7 @@ class FamilyLineIntegrationService
     family_member.with_lock do
       family_member.reload
       return failure("token_not_found") if family_member.line_invitation_token != invitation_token
+      return failure("token_expired") if token_expired?(family_member)
 
       family_member.assign_attributes(
         line_user_id: line_user_id,
@@ -42,6 +45,13 @@ class FamilyLineIntegrationService
   private
 
   attr_reader :invitation_token, :line_user_id
+
+  def token_expired?(family_member)
+    generated_at = family_member.line_invitation_token_generated_at
+    return true if generated_at.blank?
+
+    generated_at < TOKEN_TTL.ago
+  end
 
   def failure(error_code)
     Result.new(family_member: nil, error_code: error_code)

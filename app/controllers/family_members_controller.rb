@@ -18,7 +18,7 @@ class FamilyMembersController < ApplicationController
 
     family_member = FamilyLineInvitationTokenService.new(
       family_member: @family_member,
-      regenerate: false
+      regenerate: true
     ).call
 
     if family_member.linked_to_line?

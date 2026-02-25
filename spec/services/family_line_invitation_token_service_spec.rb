@@ -42,11 +42,13 @@ RSpec.describe FamilyLineInvitationTokenService, type: :service do
         line_enabled: false
       )
       original_token = family_member.line_invitation_token
+      original_generated_at = family_member.line_invitation_token_generated_at
 
       result = described_class.new(family_member: family_member, regenerate: true).call
 
       expect(result.line_invitation_token).to be_present
       expect(result.line_invitation_token).not_to eq(original_token)
+      expect(result.line_invitation_token_generated_at).to be > original_generated_at
     end
 
     it "clears token for already linked family member" do

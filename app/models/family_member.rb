@@ -29,7 +29,11 @@ class FamilyMember < ApplicationRecord
     return clear_line_invitation_token! if linked_to_line?
     return self if line_invitation_token.present? && !regenerate
 
-    self.line_invitation_token = nil if regenerate
+    if regenerate
+      self.line_invitation_token = nil
+      self.line_invitation_token_generated_at = nil
+    end
+
     assign_unique_line_invitation_token(force: regenerate)
     set_line_invitation_token_generated_at
     save! if changed?

@@ -117,6 +117,29 @@ RSpec.describe "FamilyMembers", type: :request do
       expect(json_body.fetch("line_invitation_token_generated_at")).to be_present
     end
 
+    it "reissues token and invalidates previous token" do
+      post "/clients/#{tenant_a_client.id}/family_members/#{tenant_a_family_member.id}/line_invitation",
+        as: :json,
+        headers: auth_headers_for(admin_user)
+      expect(response).to have_http_status(:ok)
+      old_token = json_body.fetch("line_invitation_token")
+
+      post "/clients/#{tenant_a_client.id}/family_members/#{tenant_a_family_member.id}/line_invitation",
+        as: :json,
+        headers: auth_headers_for(admin_user)
+      expect(response).to have_http_status(:ok)
+      new_token = json_body.fetch("line_invitation_token")
+
+      expect(new_token).not_to eq(old_token)
+
+      old_result = FamilyLineIntegrationService.new(
+        invitation_token: old_token,
+        line_user_id: "Uold-#{SecureRandom.hex(6)}"
+      ).call
+      expect(old_result.success?).to eq(false)
+      expect(old_result.error_code).to eq("token_not_found")
+    end
+
     it "returns 422 for already linked family member" do
       post "/clients/#{tenant_a_client.id}/family_members/#{linked_family_member.id}/line_invitation",
         as: :json,

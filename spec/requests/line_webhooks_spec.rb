@@ -104,4 +104,25 @@ RSpec.describe "LINE Webhooks", type: :request do
       message: include("連携コードを確認")
     )
   end
+
+  it "keeps family member unlinked and sends expired message when token is expired" do
+    family_member.update!(line_invitation_token_generated_at: 2.days.ago)
+    payload = build_payload(text: "連携コード:#{family_member.line_invitation_token}")
+    raw_body = payload.to_json
+
+    post "/api/webhooks/line",
+      params: raw_body,
+      headers: {
+        "CONTENT_TYPE" => "application/json",
+        "X-Line-Signature" => signature_for(raw_body)
+      }
+
+    expect(response).to have_http_status(:ok)
+    expect(family_member.reload.line_enabled).to eq(false)
+
+    expect(line_client).to have_received(:push_message).with(
+      line_user_id: line_user_id,
+      message: include("有効期限")
+    )
+  end
 end

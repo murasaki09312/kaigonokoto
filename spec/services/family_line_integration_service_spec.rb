@@ -62,5 +62,25 @@ RSpec.describe FamilyLineIntegrationService, type: :service do
       expect(family_member.reload.line_enabled).to eq(false)
       expect(family_member.line_user_id).to be_nil
     end
+
+    it "returns token_expired when token is older than TTL" do
+      family_member = tenant.family_members.create!(
+        client: client,
+        name: "期限切れ家族",
+        relationship: "次男",
+        line_enabled: false
+      )
+      family_member.update!(line_invitation_token_generated_at: 2.days.ago)
+
+      result = described_class.new(
+        invitation_token: family_member.line_invitation_token,
+        line_user_id: "Uexpired-#{SecureRandom.hex(8)}"
+      ).call
+
+      expect(result.success?).to eq(false)
+      expect(result.error_code).to eq("token_expired")
+      expect(family_member.reload.line_enabled).to eq(false)
+      expect(family_member.line_user_id).to be_nil
+    end
   end
 end

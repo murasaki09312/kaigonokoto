@@ -49,7 +49,11 @@ module Api
           message = "#{family_member.client.name}さんのご家族として連携が完了しました！"
           line_client.push_message(line_user_id: line_user_id, message: message)
         else
-          message = "連携コードを確認してください。問題が続く場合は施設スタッフへお問い合わせください。"
+          message = if result.error_code == "token_expired"
+            "連携コードの有効期限が切れています。施設スタッフにQRコードの再発行をご依頼ください。"
+          else
+            "連携コードを確認してください。問題が続く場合は施設スタッフへお問い合わせください。"
+          end
           line_client.push_message(line_user_id: line_user_id, message: message)
         end
       rescue StandardError => error

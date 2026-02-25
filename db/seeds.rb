@@ -81,6 +81,19 @@ end
 
 sample_client = tenant.clients.find_by!(name: "山田 太郎")
 
+sample_family_member = tenant.family_members.find_or_initialize_by(
+  client: sample_client,
+  name: "山田 家族"
+)
+sample_family_member.assign_attributes(
+  relationship: "長男",
+  line_user_id: "Udemo-family-#{sample_client.id}",
+  line_enabled: true,
+  active: true,
+  primary_contact: true
+)
+sample_family_member.save!
+
 contract_v1 = tenant.contracts.find_or_initialize_by(client_id: sample_client.id, start_on: Date.new(2025, 10, 1))
 contract_v1.assign_attributes(
   end_on: Date.new(2025, 12, 31),

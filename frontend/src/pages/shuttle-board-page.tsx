@@ -68,7 +68,6 @@ function formatActualTime(value: string | null): string {
 export function ShuttleBoardPage() {
   const { permissions } = useAuth();
   const canReadBoard = permissions.includes("shuttles:read");
-  const canManageBoard = permissions.includes("shuttles:manage");
 
   const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
   const [search, setSearch] = useState("");
@@ -102,7 +101,14 @@ export function ShuttleBoardPage() {
       await boardQuery.refetch();
     },
     onError: (error) => {
-      toast.error(formatApiError(error, "送迎ステータスの更新に失敗しました"));
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as ApiError).code === "forbidden"
+          ? "送迎ステータスを更新する権限がありません。"
+          : formatApiError(error, "送迎ステータスの更新に失敗しました");
+      toast.error(message);
     },
   });
 
@@ -120,6 +126,10 @@ export function ShuttleBoardPage() {
   const statusCounts = activeDirection === "pickup"
     ? boardQuery.data?.meta.pickup_counts
     : boardQuery.data?.meta.dropoff_counts;
+  const canOperateBoard = boardQuery.data?.meta.capabilities?.can_update_leg
+    ?? (permissions.includes("shuttles:operate") || permissions.includes("shuttles:manage"));
+  const canManageSchedule = boardQuery.data?.meta.capabilities?.can_manage_schedule
+    ?? permissions.includes("shuttles:manage");
 
   const moveDay = (direction: "prev" | "next") => {
     const current = parseISO(targetDate);
@@ -214,6 +224,15 @@ export function ShuttleBoardPage() {
               );
             })}
           </div>
+
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <Badge variant={canOperateBoard ? "secondary" : "outline"} className="rounded-lg">
+              乗降更新: {canOperateBoard ? "可" : "不可"}
+            </Badge>
+            <Badge variant={canManageSchedule ? "secondary" : "outline"} className="rounded-lg">
+              計画管理: {canManageSchedule ? "可" : "不可"}
+            </Badge>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -286,7 +305,7 @@ export function ShuttleBoardPage() {
                         <p className="truncate">メモ: {leg.note || "-"}</p>
                       </div>
 
-                      {canManageBoard ? (
+                      {canOperateBoard ? (
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                           <Button
                             type="button"
@@ -320,7 +339,7 @@ export function ShuttleBoardPage() {
                         </div>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          shuttles:manage 権限がないため更新できません。
+                          shuttles:operate または shuttles:manage 権限がないため更新できません。
                         </p>
                       )}
                     </CardContent>

@@ -21,7 +21,8 @@ class AuthController < ApplicationController
   def me
     render json: {
       user: user_response(current_user),
-      permissions: current_user.permissions.distinct.pluck(:key)
+      permissions: current_user.permissions.distinct.pluck(:key),
+      roles: current_user.roles.distinct.pluck(:name)
     }, status: :ok
   end
 

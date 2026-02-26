@@ -2,6 +2,7 @@ module Api
   module V1
     class ShuttleBoardController < ApplicationController
       def index
+        shuttle_board_policy = ShuttleBoardPolicy.new(current_user, :shuttle_board)
         authorize :shuttle_board, :index?, policy_class: ShuttleBoardPolicy
         target_date = parse_date_param(params[:date])
         return if performed?
@@ -10,7 +11,12 @@ module Api
 
         render json: {
           items: result.reservations.map { |reservation| shuttle_board_item_response(reservation) },
-          meta: result.meta
+          meta: result.meta.merge(
+            capabilities: {
+              can_update_leg: shuttle_board_policy.update_leg?,
+              can_manage_schedule: shuttle_board_policy.manage_schedule?
+            }
+          )
         }, status: :ok
       end
 

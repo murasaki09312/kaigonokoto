@@ -39,6 +39,7 @@ RSpec.describe "Auth", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("user", "email")).to eq(user.email)
       expect(json_body.fetch("permissions")).to include("users:read")
+      expect(json_body.fetch("roles")).to include("staff")
     end
   end
 

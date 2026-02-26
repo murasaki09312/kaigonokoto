@@ -16,6 +16,7 @@ type AuthContextValue = {
   token: string | null;
   user: User | null;
   permissions: string[];
+  roles: string[];
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (payload: LoginPayload) => Promise<MeResponse>;
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       user: meData?.user ?? null,
       permissions: meData?.permissions ?? [],
+      roles: meData?.roles ?? [],
       isLoading: Boolean(token) && meQuery.isPending,
       isAuthenticated: Boolean(token) && Boolean(meData?.user),
       login,

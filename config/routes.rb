@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   post "/auth/login", to: "auth#login"
   get "/auth/me", to: "auth#me"
   post "/auth/logout", to: "auth#logout"
+  post "/api/webhooks/line", to: "api/webhooks/line#create"
   post "/api/v1/reservations/generate", to: "reservations#generate"
   post "/api/v1/invoices/generate", to: "api/v1/invoices#generate"
   get "/api/v1/today_board", to: "api/v1/today_board#index"
@@ -18,6 +19,9 @@ Rails.application.routes.draw do
   resources :users, only: [ :index, :create, :show, :update ]
   resources :clients, only: [ :index, :show, :create, :update, :destroy ] do
     resources :contracts, only: [ :index, :show, :create, :update ]
+    resources :family_members, only: [ :index ] do
+      post :line_invitation, on: :member
+    end
   end
   resources :reservations, only: [ :index, :show, :create, :update, :destroy ] do
     collection do

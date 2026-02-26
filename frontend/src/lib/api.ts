@@ -1,6 +1,12 @@
 import axios, { AxiosError } from "axios";
 import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
-import type { Client, ClientPayload, ClientStatus } from "@/types/client";
+import type {
+  Client,
+  ClientPayload,
+  ClientStatus,
+  FamilyLineInvitation,
+  FamilyMember,
+} from "@/types/client";
 import type { Contract, ContractPayload } from "@/types/contract";
 import type {
   CapacityByDate,
@@ -194,6 +200,34 @@ export async function createClient(payload: ClientPayload): Promise<Client> {
   try {
     const { data } = await client.post<{ client: Client }>("/clients", payload);
     return data.client;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listFamilyMembers(clientId: number | string): Promise<{ familyMembers: FamilyMember[]; total: number }> {
+  try {
+    const { data } = await client.get<{ family_members: FamilyMember[]; meta: { total: number } }>(
+      `/clients/${clientId}/family_members`,
+    );
+    return {
+      familyMembers: data.family_members,
+      total: data.meta.total,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function issueFamilyLineInvitation(
+  clientId: number | string,
+  familyMemberId: number | string,
+): Promise<FamilyLineInvitation> {
+  try {
+    const { data } = await client.post<FamilyLineInvitation>(
+      `/clients/${clientId}/family_members/${familyMemberId}/line_invitation`,
+    );
+    return data;
   } catch (error) {
     throw normalizeError(error);
   }

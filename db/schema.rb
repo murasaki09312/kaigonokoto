@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_26_010310) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_26_010311) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -93,6 +93,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_010310) do
     t.bigint "client_id", null: false
     t.datetime "created_at", null: false
     t.boolean "line_enabled", default: false, null: false
+    t.string "line_invitation_token"
+    t.datetime "line_invitation_token_generated_at"
     t.string "line_user_id"
     t.string "name", null: false
     t.boolean "primary_contact", default: false, null: false
@@ -100,6 +102,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_010310) do
     t.bigint "tenant_id", null: false
     t.datetime "updated_at", null: false
     t.index ["client_id"], name: "index_family_members_on_client_id"
+    t.index ["line_invitation_token"], name: "index_family_members_on_line_invitation_token", unique: true, where: "((line_invitation_token IS NOT NULL) AND (btrim((line_invitation_token)::text) <> ''::text))"
     t.index ["tenant_id", "active"], name: "index_family_members_on_tenant_id_and_active"
     t.index ["tenant_id", "client_id"], name: "index_family_members_on_tenant_id_and_client_id"
     t.index ["tenant_id", "line_user_id"], name: "index_family_members_on_tenant_and_line_user_id", unique: true, where: "((line_user_id IS NOT NULL) AND (btrim((line_user_id)::text) <> ''::text))"

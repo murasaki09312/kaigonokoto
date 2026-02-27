@@ -11,6 +11,7 @@ module Admin
 
     def call
       normalized_role_names = normalize_role_names!
+      ensure_role_catalog!(normalized_role_names)
 
       ActiveRecord::Base.transaction do
         @target_user.lock!
@@ -47,6 +48,12 @@ module Admin
       raise_validation!("role not found: #{missing_role_names.join(', ')}") if missing_role_names.any?
 
       roles
+    end
+
+    def ensure_role_catalog!(role_names)
+      return unless role_names.include?("driver")
+
+      ::Admin::RoleCatalogService.ensure_driver_role!
     end
 
     def ensure_target_in_tenant!

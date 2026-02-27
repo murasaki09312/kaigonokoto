@@ -14,6 +14,7 @@ import * as api from "@/lib/api";
 
 const mockAuthState = vi.hoisted(() => ({
   permissions: ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"] as string[],
+  roles: ["admin"] as string[],
 }));
 const mockCurrentTimeState = vi.hoisted(() => ({
   current: new Date("2026-02-27T09:00:00+09:00"),
@@ -22,6 +23,7 @@ const mockCurrentTimeState = vi.hoisted(() => ({
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => ({
     permissions: mockAuthState.permissions,
+    roles: mockAuthState.roles,
   }),
 }));
 vi.mock("@/hooks/useCurrentTime", () => ({
@@ -288,6 +290,7 @@ describe("dashboard KPI query integration", () => {
 
   beforeEach(() => {
     mockAuthState.permissions = ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"];
+    mockAuthState.roles = ["admin"];
     mockCurrentTimeState.current = new Date("2026-02-27T09:00:00+09:00");
     vi.mocked(api.getTodayBoard).mockResolvedValue(createTodayBoardResponse());
     vi.mocked(api.getShuttleBoard).mockResolvedValue(createShuttleResponse());

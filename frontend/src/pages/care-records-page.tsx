@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -34,8 +34,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "react-router-dom";
 
 type CareRecordFormValues = {
   body_temperature: string;
@@ -47,6 +49,8 @@ type CareRecordFormValues = {
   handoff_note: string;
   send_line_notification: boolean;
 };
+
+type CareRecordTab = "all" | "unrecorded";
 
 type LineStatusUi = {
   label: string;
@@ -137,6 +141,10 @@ function lineStatusForItem(item: TodayBoardItem): LineNotificationStatus {
   return item.line_notification?.status ?? "unsent";
 }
 
+function parseCareRecordTab(value: string | null): CareRecordTab {
+  return value === "unrecorded" ? "unrecorded" : "all";
+}
+
 function LineStatusBadge({ status }: { status: LineNotificationStatus }) {
   const ui = LINE_STATUS_UI[status];
   const Icon = ui.icon;
@@ -156,9 +164,12 @@ export function CareRecordsPage() {
   const { permissions } = useAuth();
   const canReadRecords = permissions.includes("today_board:read");
   const canManageCareRecord = permissions.includes("care_records:manage");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<CareRecordTab>(() => parseCareRecordTab(tabParam));
   const [selectedItem, setSelectedItem] = useState<TodayBoardItem | null>(null);
   const [formValues, setFormValues] = useState<CareRecordFormValues | null>(null);
 
@@ -192,7 +203,11 @@ export function CareRecordsPage() {
   });
 
   const filteredItems = useMemo(() => {
-    const items = boardQuery.data?.items ?? [];
+    let items = boardQuery.data?.items ?? [];
+    if (activeTab === "unrecorded") {
+      items = items.filter((item) => item.care_record === null);
+    }
+
     const keyword = search.trim().toLowerCase();
 
     if (!keyword) return items;
@@ -202,7 +217,7 @@ export function CareRecordsPage() {
       const note = (item.care_record?.handoff_note ?? "").toLowerCase();
       return name.includes(keyword) || note.includes(keyword);
     });
-  }, [boardQuery.data?.items, search]);
+  }, [activeTab, boardQuery.data?.items, search]);
 
   const boardDateLabel = useMemo(() => {
     return format(parseISO(targetDate), "yyyy/MM/dd (E)", { locale: ja });
@@ -225,6 +240,23 @@ export function CareRecordsPage() {
     const current = parseISO(targetDate);
     const next = direction === "prev" ? subDays(current, 1) : addDays(current, 1);
     setTargetDate(formatDateKey(next));
+  };
+
+  useEffect(() => {
+    setActiveTab(parseCareRecordTab(tabParam));
+  }, [tabParam]);
+
+  const updateTab = (nextTab: CareRecordTab) => {
+    setActiveTab(nextTab);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (nextTab === "all") {
+        next.delete("tab");
+      } else {
+        next.set("tab", nextTab);
+      }
+      return next;
+    }, { replace: true });
   };
 
   const openDialog = (item: TodayBoardItem) => {
@@ -307,6 +339,13 @@ export function CareRecordsPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
+
+          <Tabs value={activeTab} onValueChange={(value) => updateTab(value as CareRecordTab)}>
+            <TabsList className="rounded-xl">
+              <TabsTrigger value="all">すべて</TabsTrigger>
+              <TabsTrigger value="unrecorded">未入力のみ</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
       </Card>
 

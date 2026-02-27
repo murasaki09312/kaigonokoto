@@ -20,6 +20,6 @@ class TenantsController < ApplicationController
   private
 
   def tenant_params
-    params.permit(:name, :slug)
+    params.permit(:name, :slug, :city_name, :facility_scale)
   end
 end

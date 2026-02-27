@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   post "/api/v1/reservations/generate", to: "reservations#generate"
   post "/api/v1/invoices/generate", to: "api/v1/invoices#generate"
   get "/api/v1/today_board", to: "api/v1/today_board#index"
+  get "/api/v1/settings/facility", to: "api/v1/facility_settings#show"
+  patch "/api/v1/settings/facility", to: "api/v1/facility_settings#update"
   get "/api/v1/dashboard/handoffs", to: "api/v1/dashboard/handoffs#index"
   get "/api/v1/shuttle_board", to: "api/v1/shuttle_board#index"
   get "/api/v1/invoices", to: "api/v1/invoices#index"

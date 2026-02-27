@@ -1,7 +1,12 @@
 tenant = Tenant.find_or_create_by!(slug: "demo-dayservice") do |record|
   record.name = "Demo Dayservice"
+  record.city_name = "目黒区"
+  record.facility_scale = :normal
 end
 tenant.update!(name: "Demo Dayservice") if tenant.name != "Demo Dayservice"
+if tenant.city_name != "目黒区" || tenant.facility_scale != "normal"
+  tenant.update!(city_name: "目黒区", facility_scale: :normal)
+end
 
 permission_keys = [
   "users:read",

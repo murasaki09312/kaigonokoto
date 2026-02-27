@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -35,6 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +64,8 @@ type AttendanceStatusUiMeta = {
   variant: NonNullable<BadgeProps["variant"]>;
   badgeClassName: string;
 };
+
+type TodayBoardFilter = "all" | "attendance_pending" | "care_record_pending";
 
 const ATTENDANCE_STATUS_UI: Record<AttendanceStatus, AttendanceStatusUiMeta> = {
   pending: {
@@ -182,14 +185,23 @@ function formatApiError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
+function parseTodayBoardFilter(value: string | null): TodayBoardFilter {
+  if (value === "attendance_pending") return "attendance_pending";
+  if (value === "care_record_pending") return "care_record_pending";
+  return "all";
+}
+
 export function TodayBoardPage() {
   const { permissions } = useAuth();
   const canReadBoard = permissions.includes("today_board:read");
   const canManageAttendance = permissions.includes("attendances:manage");
   const canManageCareRecord = permissions.includes("care_records:manage");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterParam = searchParams.get("filter");
 
   const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<TodayBoardFilter>(() => parseTodayBoardFilter(filterParam));
   const [attendanceDrafts, setAttendanceDrafts] = useState<Record<number, AttendanceDraft>>({});
   const [careRecordDrafts, setCareRecordDrafts] = useState<Record<number, CareRecordDraft>>({});
 
@@ -248,14 +260,24 @@ export function TodayBoardPage() {
   });
 
   const filteredItems = useMemo(() => {
-    const items = boardQuery.data?.items ?? [];
+    let items = boardQuery.data?.items ?? [];
+    if (activeFilter === "attendance_pending") {
+      items = items.filter((item) => (item.attendance?.status ?? "pending") === "pending");
+    } else if (activeFilter === "care_record_pending") {
+      items = items.filter((item) => item.care_record === null);
+    }
+
     const normalizedSearch = search.trim().toLowerCase();
     if (!normalizedSearch) return items;
 
     return items.filter((item) =>
       (item.reservation.client_name ?? "").toLowerCase().includes(normalizedSearch),
     );
-  }, [boardQuery.data?.items, search]);
+  }, [activeFilter, boardQuery.data?.items, search]);
+
+  useEffect(() => {
+    setActiveFilter(parseTodayBoardFilter(filterParam));
+  }, [filterParam]);
 
   const boardDateLabel = useMemo(() => {
     return format(parseISO(targetDate), "yyyy/MM/dd (E)", { locale: ja });
@@ -320,6 +342,19 @@ export function TodayBoardPage() {
     setTargetDate(formatDateKey(next));
   };
 
+  const updateActiveFilter = (nextFilter: TodayBoardFilter) => {
+    setActiveFilter(nextFilter);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (nextFilter === "all") {
+        next.delete("filter");
+      } else {
+        next.set("filter", nextFilter);
+      }
+      return next;
+    }, { replace: true });
+  };
+
   if (!canReadBoard) {
     return (
       <Card className="rounded-2xl border-border/70 shadow-sm">
@@ -363,6 +398,36 @@ export function TodayBoardPage() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="利用者名で検索"
             />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={activeFilter === "all" ? "secondary" : "outline"}
+              className="rounded-lg"
+              onClick={() => updateActiveFilter("all")}
+            >
+              すべて
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeFilter === "attendance_pending" ? "secondary" : "outline"}
+              className="rounded-lg"
+              onClick={() => updateActiveFilter("attendance_pending")}
+            >
+              未出欠
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeFilter === "care_record_pending" ? "secondary" : "outline"}
+              className="rounded-lg"
+              onClick={() => updateActiveFilter("care_record_pending")}
+            >
+              記録未完了
+            </Button>
           </div>
         </CardHeader>
       </Card>

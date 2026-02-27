@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Activity, CheckCircle2, Clock3, Users2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type Snapshot = {
   scheduled: number;
@@ -15,6 +18,15 @@ type UpdateItem = {
   id: string;
   text: string;
   when: string;
+};
+
+type DashboardCard = {
+  title: string;
+  value: number | undefined;
+  icon: typeof Users2;
+  hint: string;
+  to?: string;
+  requiredPermission?: string;
 };
 
 async function fetchSnapshot(): Promise<Snapshot> {
@@ -37,10 +49,12 @@ async function fetchRecentUpdates(): Promise<UpdateItem[]> {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+  const { permissions } = useAuth();
   const snapshotQuery = useQuery({ queryKey: ["dashboard", "snapshot"], queryFn: fetchSnapshot });
   const recentQuery = useQuery({ queryKey: ["dashboard", "recent"], queryFn: fetchRecentUpdates });
 
-  const cards = [
+  const cards: DashboardCard[] = [
     {
       title: "今日の予定人数",
       value: snapshotQuery.data?.scheduled,
@@ -52,18 +66,24 @@ export function DashboardPage() {
       value: snapshotQuery.data?.pendingAttendance,
       icon: Clock3,
       hint: "入力待ち",
+      to: "/app/today-board?filter=attendance_pending",
+      requiredPermission: "today_board:read",
     },
     {
       title: "送迎未完了",
       value: snapshotQuery.data?.shuttlePending,
       icon: Activity,
       hint: "乗降チェック待ち",
+      to: "/app/shuttle?direction=pickup&status=pending",
+      requiredPermission: "shuttles:read",
     },
     {
       title: "記録未完了",
       value: snapshotQuery.data?.recordPending,
       icon: CheckCircle2,
       hint: "ケア記録待ち",
+      to: "/app/records?tab=unrecorded",
+      requiredPermission: "today_board:read",
     },
   ];
 
@@ -72,8 +92,33 @@ export function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
+          const isActionable = Boolean(card.to);
+          const canNavigate = isActionable
+            && (!card.requiredPermission || permissions.includes(card.requiredPermission));
+          const destination = canNavigate && card.to ? card.to : null;
+
           return (
-            <Card key={card.title} className="rounded-2xl border-border/70 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <Card
+              key={card.title}
+              role={canNavigate ? "button" : undefined}
+              tabIndex={canNavigate ? 0 : undefined}
+              aria-disabled={isActionable && !canNavigate ? true : undefined}
+              onClick={destination ? () => navigate(destination) : undefined}
+              onKeyDown={destination
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(destination);
+                    }
+                  }
+                : undefined}
+              className={cn(
+                "rounded-2xl border-border/70 shadow-sm",
+                isActionable && "transition-all duration-200",
+                canNavigate && "cursor-pointer hover:-translate-y-1 hover:shadow-md",
+                isActionable && !canNavigate && "opacity-60",
+              )}
+            >
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
                 <Icon className="size-4 text-muted-foreground" />

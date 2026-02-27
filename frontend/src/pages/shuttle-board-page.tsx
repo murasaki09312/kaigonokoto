@@ -1,9 +1,10 @@
-import { useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { addDays, format, parseISO, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Ban, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, CircleSlash2, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { getShuttleBoard, type ApiError, upsertShuttleLeg } from "@/lib/api";
 import type { ShuttleBoardItem, ShuttleDirection, ShuttleLegStatus } from "@/types/shuttle";
 import { useAuth } from "@/providers/auth-provider";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,8 @@ type StatusUi = {
   className: string;
   icon: ComponentType<{ className?: string }>;
 };
+
+type ShuttleStatusFilter = ShuttleLegStatus | "all";
 
 const STATUS_UI: Record<ShuttleLegStatus, StatusUi> = {
   pending: {
@@ -56,6 +60,18 @@ function formatApiError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
+function parseDirection(value: string | null): ShuttleDirection {
+  return value === "dropoff" ? "dropoff" : "pickup";
+}
+
+function parseStatusFilter(value: string | null): ShuttleStatusFilter {
+  if (value === "pending") return "pending";
+  if (value === "boarded") return "boarded";
+  if (value === "alighted") return "alighted";
+  if (value === "cancelled") return "cancelled";
+  return "all";
+}
+
 function getLeg(item: ShuttleBoardItem, direction: ShuttleDirection) {
   return direction === "pickup" ? item.shuttle_operation.pickup_leg : item.shuttle_operation.dropoff_leg;
 }
@@ -68,10 +84,14 @@ function formatActualTime(value: string | null): string {
 export function ShuttleBoardPage() {
   const { permissions } = useAuth();
   const canReadBoard = permissions.includes("shuttles:read");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const directionParam = searchParams.get("direction");
+  const statusParam = searchParams.get("status");
 
   const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
   const [search, setSearch] = useState("");
-  const [activeDirection, setActiveDirection] = useState<ShuttleDirection>("pickup");
+  const [activeDirection, setActiveDirection] = useState<ShuttleDirection>(() => parseDirection(directionParam));
+  const [statusFilter, setStatusFilter] = useState<ShuttleStatusFilter>(() => parseStatusFilter(statusParam));
 
   const boardQuery = useQuery({
     queryKey: ["shuttle-board", targetDate],
@@ -113,14 +133,18 @@ export function ShuttleBoardPage() {
   });
 
   const filteredItems = useMemo(() => {
-    const items = boardQuery.data?.items ?? [];
+    let items = boardQuery.data?.items ?? [];
+    if (statusFilter !== "all") {
+      items = items.filter((item) => getLeg(item, activeDirection).status === statusFilter);
+    }
+
     const normalizedSearch = search.trim().toLowerCase();
     if (!normalizedSearch) return items;
 
     return items.filter((item) =>
       (item.reservation.client_name ?? "").toLowerCase().includes(normalizedSearch),
     );
-  }, [boardQuery.data?.items, search]);
+  }, [activeDirection, boardQuery.data?.items, search, statusFilter]);
 
   const boardDateLabel = useMemo(() => format(parseISO(targetDate), "yyyy/MM/dd (E)", { locale: ja }), [targetDate]);
   const statusCounts = activeDirection === "pickup"
@@ -135,6 +159,36 @@ export function ShuttleBoardPage() {
     const current = parseISO(targetDate);
     const next = direction === "prev" ? subDays(current, 1) : addDays(current, 1);
     setTargetDate(formatDateKey(next));
+  };
+
+  useEffect(() => {
+    setActiveDirection(parseDirection(directionParam));
+  }, [directionParam]);
+
+  useEffect(() => {
+    setStatusFilter(parseStatusFilter(statusParam));
+  }, [statusParam]);
+
+  const updateDirection = (nextDirection: ShuttleDirection) => {
+    setActiveDirection(nextDirection);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("direction", nextDirection);
+      return next;
+    }, { replace: true });
+  };
+
+  const updateStatusFilter = (nextStatus: ShuttleStatusFilter) => {
+    setStatusFilter(nextStatus);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (nextStatus === "all") {
+        next.delete("status");
+      } else {
+        next.set("status", nextStatus);
+      }
+      return next;
+    }, { replace: true });
   };
 
   const updateStatus = async (item: ShuttleBoardItem, status: ShuttleLegStatus) => {
@@ -189,21 +243,36 @@ export function ShuttleBoardPage() {
           </div>
 
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <Tabs value={activeDirection} onValueChange={(value) => setActiveDirection(value as ShuttleDirection)}>
+            <Tabs value={activeDirection} onValueChange={(value) => updateDirection(value as ShuttleDirection)}>
               <TabsList className="rounded-xl">
                 <TabsTrigger value="pickup">迎え</TabsTrigger>
                 <TabsTrigger value="dropoff">送り</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="rounded-xl pl-9"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="利用者名で検索"
-              />
+            <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
+              <Select value={statusFilter} onValueChange={(value) => updateStatusFilter(value as ShuttleStatusFilter)}>
+                <SelectTrigger className="w-full rounded-xl lg:w-44">
+                  <SelectValue placeholder="状態で絞り込み" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="pending">未実施</SelectItem>
+                  <SelectItem value="boarded">乗車済み</SelectItem>
+                  <SelectItem value="alighted">降車済み</SelectItem>
+                  <SelectItem value="cancelled">キャンセル</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="relative w-full max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="rounded-xl pl-9"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="利用者名で検索"
+                />
+              </div>
             </div>
           </div>
 

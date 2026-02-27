@@ -63,6 +63,8 @@ class ApplicationController < ActionController::API
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      city_name: tenant.city_name,
+      facility_scale: tenant.facility_scale,
       created_at: tenant.created_at,
       updated_at: tenant.updated_at
     }

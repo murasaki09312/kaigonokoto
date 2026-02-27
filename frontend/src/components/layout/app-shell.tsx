@@ -57,15 +57,16 @@ const pageTitleMap: Record<string, string> = {
   "/app/invoices": "請求",
   "/app/users": "ユーザー一覧",
   "/app/settings/users": "スタッフ管理",
+  "/app/settings/facility": "事業所設定",
 };
 
 function SidebarItems({
   onNavigate,
-  showTenantAdmin,
+  showFacilitySettings,
   showStaffManagement,
 }: {
   onNavigate?: () => void;
-  showTenantAdmin: boolean;
+  showFacilitySettings: boolean;
   showStaffManagement: boolean;
 }) {
   const items = useMemo(() => {
@@ -73,11 +74,11 @@ function SidebarItems({
     if (showStaffManagement) {
       baseItems.push({ label: "スタッフ管理", to: "/app/settings/users", icon: Settings });
     }
-    if (showTenantAdmin) {
-      return [...baseItems, { label: "テナント管理", icon: Settings, disabled: true } satisfies NavItem];
+    if (showFacilitySettings) {
+      baseItems.push({ label: "事業所設定", to: "/app/settings/facility", icon: Settings });
     }
     return baseItems;
-  }, [showStaffManagement, showTenantAdmin]);
+  }, [showStaffManagement, showFacilitySettings]);
 
   return (
     <nav className="space-y-1 px-2">
@@ -143,7 +144,7 @@ export function AppShell() {
             <Badge variant="secondary" className="rounded-lg">MVP</Badge>
           </div>
           <SidebarItems
-            showTenantAdmin={permissions.includes("tenants:manage")}
+            showFacilitySettings={permissions.includes("tenants:manage")}
             showStaffManagement={permissions.includes("users:manage")}
           />
         </aside>
@@ -164,7 +165,7 @@ export function AppShell() {
                   </div>
                   <div className="py-4">
                     <SidebarItems
-                      showTenantAdmin={permissions.includes("tenants:manage")}
+                      showFacilitySettings={permissions.includes("tenants:manage")}
                       showStaffManagement={permissions.includes("users:manage")}
                       onNavigate={() => setIsOpen(false)}
                     />

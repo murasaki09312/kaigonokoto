@@ -22,6 +22,8 @@ const ROUTE_ACCESS_RULES: RouteAccessRule[] = [
   { pattern: /^\/app\/shuttle(?:\/|$)/, requiredPermissions: ["shuttles:read"] },
   { pattern: /^\/app\/invoices(?:\/|$)/, requiredPermissions: ["invoices:read"] },
   { pattern: /^\/app\/users(?:\/|$)/, requiredPermissions: ["users:read"] },
+  { pattern: /^\/app\/settings\/users(?:\/|$)/, requiredPermissions: ["users:manage"] },
+  { pattern: /^\/app\/settings\/facility(?:\/|$)/, requiredPermissions: ["tenants:manage"] },
   { pattern: /^\/app\/?$/, requiredPermissions: [] },
 ];
 

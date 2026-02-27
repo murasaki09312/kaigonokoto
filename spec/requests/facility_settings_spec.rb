@@ -99,5 +99,14 @@ RSpec.describe "FacilitySettings", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
       expect(json_body.dig("error", "code")).to eq("validation_error")
     end
+
+    it "returns 422 for unsupported city_name" do
+      patch "/api/v1/settings/facility",
+        params: { city_name: "調布市", facility_scale: "normal" }.to_json,
+        headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+    end
   end
 end

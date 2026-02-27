@@ -9,13 +9,21 @@ module Api
 
       def update
         authorize :facility_setting, :update?, policy_class: FacilitySettingPolicy
+        attributes = facility_setting_params.to_h
+        city_name = attributes.key?("city_name") ? attributes["city_name"] : current_tenant.city_name
+        facility_scale = attributes.key?("facility_scale") ? attributes["facility_scale"] : current_tenant.facility_scale
 
-        if invalid_facility_scale?(facility_setting_params[:facility_scale])
+        if invalid_city_name?(city_name)
+          current_tenant.errors.add(:city_name, "is unsupported")
+          return render_validation_error(current_tenant)
+        end
+
+        if invalid_facility_scale?(facility_scale)
           current_tenant.errors.add(:facility_scale, "is invalid")
           return render_validation_error(current_tenant)
         end
 
-        if current_tenant.update(facility_setting_params)
+        if current_tenant.update(attributes)
           render json: { facility_setting: facility_setting_response(current_tenant) }, status: :ok
         else
           render_validation_error(current_tenant)
@@ -33,6 +41,13 @@ module Api
         return false if value.blank?
 
         !Tenant.facility_scales.key?(value)
+      end
+
+      def invalid_city_name?(value)
+        city_name = value.to_s.strip
+        return true if city_name.blank?
+
+        !Billing::AreaGradeResolver.supported_cities.include?(city_name)
       end
 
       def facility_setting_response(tenant)

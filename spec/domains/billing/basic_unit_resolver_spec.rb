@@ -51,5 +51,21 @@ RSpec.describe Billing::BasicUnitResolver do
         resolver.resolve(care_level: 6, duration_category: "7h_to_8h", facility_scale: "normal")
       end.to raise_error(ArgumentError, /care_level/)
     end
+
+    it "raises when duration_category is nil" do
+      resolver = described_class.new
+
+      expect do
+        resolver.resolve(care_level: 1, duration_category: nil, facility_scale: "normal")
+      end.to raise_error(ArgumentError, /duration_category/)
+    end
+
+    it "raises when duration_category is blank" do
+      resolver = described_class.new
+
+      expect do
+        resolver.resolve(care_level: 1, duration_category: "", facility_scale: "normal")
+      end.to raise_error(ArgumentError, /duration_category/)
+    end
   end
 end

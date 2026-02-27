@@ -50,13 +50,14 @@ module Billing
     end
 
     def coerce_duration(value)
-      normalized = value.to_s.strip.to_sym
-      if normalized == :"" || normalized == :"7h_to_8h"
-        return DURATION_H7_TO_H8
-      end
+      normalized = value.to_s.strip
+      raise ArgumentError, "duration_category is required" if normalized.blank?
 
-      if self.class.supported_duration_categories.include?(normalized)
-        return normalized
+      symbolized = normalized.to_sym
+      return DURATION_H7_TO_H8 if symbolized == :"7h_to_8h"
+
+      if self.class.supported_duration_categories.include?(symbolized)
+        return symbolized
       end
 
       raise ArgumentError, "unsupported duration_category: #{value}"

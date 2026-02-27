@@ -15,11 +15,17 @@ import * as api from "@/lib/api";
 const mockAuthState = vi.hoisted(() => ({
   permissions: ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"] as string[],
 }));
+const mockCurrentTimeState = vi.hoisted(() => ({
+  current: new Date("2026-02-27T09:00:00+09:00"),
+}));
 
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => ({
     permissions: mockAuthState.permissions,
   }),
+}));
+vi.mock("@/hooks/useCurrentTime", () => ({
+  useCurrentTime: () => mockCurrentTimeState.current,
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -282,6 +288,7 @@ describe("dashboard KPI query integration", () => {
 
   beforeEach(() => {
     mockAuthState.permissions = ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"];
+    mockCurrentTimeState.current = new Date("2026-02-27T09:00:00+09:00");
     vi.mocked(api.getTodayBoard).mockResolvedValue(createTodayBoardResponse());
     vi.mocked(api.getShuttleBoard).mockResolvedValue(createShuttleResponse());
     vi.mocked(api.upsertAttendance).mockResolvedValue({} as never);
@@ -291,6 +298,7 @@ describe("dashboard KPI query integration", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   it("navigates from KPI card to today board and applies pending attendance filter", async () => {
@@ -401,5 +409,39 @@ describe("dashboard KPI query integration", () => {
 
     fireEvent.click(disabledCard);
     expect(screen.queryByTestId("location")).toBeNull();
+  });
+
+  it("shows warning/critical styles based on deadlines and pending counts", async () => {
+    mockCurrentTimeState.current = new Date("2026-02-27T10:45:00+09:00");
+
+    renderWithRouter("/app");
+
+    await screen.findByTestId("kpi-value-attendance-pending");
+    const attendanceCard = screen.getByTestId("kpi-card-attendance-pending");
+    const shuttleCard = screen.getByTestId("kpi-card-shuttle-pending");
+    const recordCard = screen.getByTestId("kpi-card-record-pending");
+
+    expect(attendanceCard.className).toContain("border-yellow-400");
+    expect(shuttleCard.className).toContain("border-red-500");
+    expect(recordCard.className).not.toContain("border-yellow-400");
+    expect(recordCard.className).not.toContain("border-red-500");
+  });
+
+  it("switches shuttle KPI to dropoff and afternoon card order", async () => {
+    mockCurrentTimeState.current = new Date("2026-02-27T13:00:00+09:00");
+
+    renderWithRouter("/app");
+
+    await screen.findByTestId("kpi-value-shuttle-pending");
+    expect(screen.getByText("送迎未完了（送り）")).toBeTruthy();
+    expect(screen.getByTestId("kpi-value-shuttle-pending").textContent).toBe("2");
+
+    const orderedIds = screen.getAllByTestId(/^kpi-card-/).map((element) => element.getAttribute("data-testid"));
+    expect(orderedIds).toEqual([
+      "kpi-card-scheduled",
+      "kpi-card-record-pending",
+      "kpi-card-shuttle-pending",
+      "kpi-card-attendance-pending",
+    ]);
   });
 });

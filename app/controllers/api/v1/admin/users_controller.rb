@@ -67,9 +67,9 @@ module Api
 
         def role_label(role_name)
           case role_name
-          when "admin" then "管理者 (Admin)"
-          when "staff" then "一般スタッフ (Staff)"
-          when "driver" then "送迎ドライバー (Driver)"
+          when "admin" then "管理者"
+          when "staff" then "一般スタッフ"
+          when "driver" then "送迎ドライバー"
           else role_name
           end
         end

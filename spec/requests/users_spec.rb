@@ -62,8 +62,13 @@ RSpec.describe "Users", type: :request do
       get "/users", headers: auth_headers_for(admin_user)
 
       expect(response).to have_http_status(:ok)
-      emails = json_body.fetch("users").map { |item| item.fetch("email") }
+      users = json_body.fetch("users")
+      emails = users.map { |item| item.fetch("email") }
       expect(emails).to contain_exactly(admin_user.email, staff_user.email)
+
+      admin_row = users.find { |item| item.fetch("email") == admin_user.email }
+      expect(admin_row.fetch("role_names")).to include("admin")
+      expect(admin_row.fetch("roles").first).to include("name", "label")
     end
   end
 

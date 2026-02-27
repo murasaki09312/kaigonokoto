@@ -58,7 +58,7 @@ export function UsersTable({ users }: { users: User[] }) {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
+            <TableHead>スタッフ権限</TableHead>
             <TableHead className="text-right">Updated</TableHead>
           </TableRow>
         </TableHeader>
@@ -67,7 +67,7 @@ export function UsersTable({ users }: { users: User[] }) {
             <TableRow key={user.id} className="transition-colors hover:bg-muted/40">
               <TableCell className="font-medium">{user.name || "-"}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>—</TableCell>
+              <TableCell>{user.roles?.map((role) => role.label).join(" / ") || "—"}</TableCell>
               <TableCell className="text-right text-muted-foreground">
                 {formatDistanceToNow(new Date(user.updated_at), { addSuffix: true, locale: ja })}
               </TableCell>

@@ -41,12 +41,12 @@ export function AdminUserRoleManagementPage() {
       setUpdatingUserId(userId);
     },
     onSuccess: async (_, variables) => {
-      toast.success("ロールを更新しました");
+      toast.success("スタッフ権限を更新しました");
       await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       setUpdatingUserId((current) => (current === variables.userId ? null : current));
     },
     onError: (error, variables) => {
-      toast.error(formatApiError(error, "ロール更新に失敗しました"));
+      toast.error(formatApiError(error, "スタッフ権限の更新に失敗しました"));
       setUpdatingUserId((current) => (current === variables.userId ? null : current));
     },
   });
@@ -137,8 +137,8 @@ export function AdminUserRoleManagementPage() {
                   <TableRow>
                     <TableHead>名前</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>現在ロール</TableHead>
-                    <TableHead>変更</TableHead>
+                    <TableHead>スタッフ権限</TableHead>
+                    <TableHead>スタッフ権限の変更</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -155,7 +155,7 @@ export function AdminUserRoleManagementPage() {
                           <div className="flex flex-wrap gap-1">
                             {targetUser.role_names.map((roleName) => (
                               <Badge key={`${targetUser.id}-${roleName}`} variant="secondary" className="rounded-lg">
-                                {roleName}
+                                {targetUser.roles.find((role) => role.name == roleName)?.label ?? roleName}
                               </Badge>
                             ))}
                           </div>
@@ -173,7 +173,7 @@ export function AdminUserRoleManagementPage() {
                                     disabled={disabled}
                                   >
                                     <SelectTrigger className="w-56 rounded-xl">
-                                      <SelectValue placeholder="ロールを選択" />
+                                      <SelectValue placeholder="スタッフ権限を選択" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {(adminUsersQuery.data?.roleOptions ?? []).map((roleOption) => (
@@ -187,7 +187,7 @@ export function AdminUserRoleManagementPage() {
                               </TooltipTrigger>
                               {isSelf && (
                                 <TooltipContent>
-                                  自分自身のAdminロールは外せないため変更できません。
+                                  自分自身のスタッフ権限は変更できません。
                                 </TooltipContent>
                               )}
                             </Tooltip>

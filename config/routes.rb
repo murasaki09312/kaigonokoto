@@ -11,6 +11,9 @@ Rails.application.routes.draw do
   get "/api/v1/shuttle_board", to: "api/v1/shuttle_board#index"
   get "/api/v1/invoices", to: "api/v1/invoices#index"
   get "/api/v1/invoices/:id", to: "api/v1/invoices#show"
+  get "/api/v1/admin/users", to: "api/v1/admin/users#index"
+  put "/api/v1/admin/users/:id/roles", to: "api/v1/admin/users#update_roles"
+  patch "/api/v1/admin/users/:id/roles", to: "api/v1/admin/users#update_roles"
   put "/api/v1/reservations/:reservation_id/attendance", to: "api/v1/attendances#upsert"
   put "/api/v1/reservations/:reservation_id/care_record", to: "api/v1/care_records#upsert"
   put "/api/v1/reservations/:reservation_id/shuttle_legs/:direction", to: "api/v1/shuttle_legs#upsert", constraints: { direction: /pickup|dropoff/ }

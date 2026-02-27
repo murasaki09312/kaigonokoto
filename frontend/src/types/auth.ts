@@ -1,8 +1,16 @@
+export type UserRole = {
+  id: number;
+  name: string;
+  label: string;
+};
+
 export type User = {
   id: number;
   tenant_id: number;
   name: string | null;
   email: string;
+  role_names?: string[];
+  roles?: UserRole[];
   created_at: string;
   updated_at: string;
 };

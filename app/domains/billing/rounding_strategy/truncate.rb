@@ -13,6 +13,10 @@ module Billing
           raise ArgumentError, "amount must be BigDecimal, Numeric, or String"
         end
 
+        if decimal.negative?
+          raise ArgumentError, "truncate strategy only supports non-negative amounts"
+        end
+
         decimal.floor
       end
     end

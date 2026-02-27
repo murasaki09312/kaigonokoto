@@ -8,5 +8,12 @@ RSpec.describe Billing::RoundingStrategy::Truncate do
 
       expect(strategy.apply(amount)).to eq(16_698)
     end
+
+    it "rejects negative amount to avoid ambiguous floor behavior" do
+      strategy = described_class.new
+
+      expect { strategy.apply(BigDecimal("-1.2")) }
+        .to raise_error(ArgumentError, /non-negative/)
+    end
   end
 end

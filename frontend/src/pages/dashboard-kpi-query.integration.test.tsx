@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -251,6 +251,35 @@ function renderWithRouter(initialEntry: string) {
 }
 
 describe("dashboard KPI query integration", () => {
+  beforeAll(() => {
+    if (!HTMLElement.prototype.hasPointerCapture) {
+      Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+        value: () => false,
+        configurable: true,
+      });
+    }
+
+    if (!HTMLElement.prototype.setPointerCapture) {
+      Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
+        value: () => {},
+        configurable: true,
+      });
+    }
+
+    if (!HTMLElement.prototype.releasePointerCapture) {
+      Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
+        value: () => {},
+        configurable: true,
+      });
+    }
+  });
+
+  afterAll(() => {
+    delete (HTMLElement.prototype as Partial<HTMLElement>).hasPointerCapture;
+    delete (HTMLElement.prototype as Partial<HTMLElement>).setPointerCapture;
+    delete (HTMLElement.prototype as Partial<HTMLElement>).releasePointerCapture;
+  });
+
   beforeEach(() => {
     mockAuthState.permissions = ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"];
     vi.mocked(api.getTodayBoard).mockResolvedValue(createTodayBoardResponse());
@@ -310,6 +339,39 @@ describe("dashboard KPI query integration", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("location").textContent).toBe("/app/today-board");
+    });
+    expect(screen.getByText("利用者B")).toBeTruthy();
+  });
+
+  it("updates URL query when shuttle direction/status filters are changed on page", async () => {
+    renderWithRouter("/app/shuttle?direction=pickup&status=pending");
+
+    await screen.findByText("送迎A");
+    expect(screen.queryByText("送迎B")).toBeNull();
+
+    const dropoffTab = screen.getByRole("tab", { name: "送り", selected: false });
+    fireEvent.mouseDown(dropoffTab, { button: 0 });
+    fireEvent.click(dropoffTab);
+    fireEvent.click(screen.getByRole("button", { name: "状態: すべて" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location").textContent).toBe("/app/shuttle?direction=dropoff");
+    });
+    expect(screen.getByText("送迎B")).toBeTruthy();
+  });
+
+  it("updates URL query when records tab is changed on page", async () => {
+    renderWithRouter("/app/records?tab=unrecorded");
+
+    await screen.findByText("利用者A");
+    expect(screen.queryByText("利用者B")).toBeNull();
+
+    const allTab = screen.getByRole("tab", { name: "すべて", selected: false });
+    fireEvent.mouseDown(allTab, { button: 0 });
+    fireEvent.click(allTab);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location").textContent).toBe("/app/records");
     });
     expect(screen.getByText("利用者B")).toBeTruthy();
   });

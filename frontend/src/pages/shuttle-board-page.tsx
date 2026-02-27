@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -25,6 +24,19 @@ type StatusUi = {
 };
 
 type ShuttleStatusFilter = ShuttleLegStatus | "all";
+
+type ShuttleStatusFilterOption = {
+  value: ShuttleStatusFilter;
+  label: string;
+};
+
+const STATUS_FILTER_OPTIONS: ShuttleStatusFilterOption[] = [
+  { value: "all", label: "すべて" },
+  { value: "pending", label: "未実施" },
+  { value: "boarded", label: "乗車済み" },
+  { value: "alighted", label: "降車済み" },
+  { value: "cancelled", label: "キャンセル" },
+];
 
 const STATUS_UI: Record<ShuttleLegStatus, StatusUi> = {
   pending: {
@@ -251,18 +263,21 @@ export function ShuttleBoardPage() {
             </Tabs>
 
             <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
-              <Select value={statusFilter} onValueChange={(value) => updateStatusFilter(value as ShuttleStatusFilter)}>
-                <SelectTrigger className="w-full rounded-xl lg:w-44">
-                  <SelectValue placeholder="状態で絞り込み" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">すべて</SelectItem>
-                  <SelectItem value="pending">未実施</SelectItem>
-                  <SelectItem value="boarded">乗車済み</SelectItem>
-                  <SelectItem value="alighted">降車済み</SelectItem>
-                  <SelectItem value="cancelled">キャンセル</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    size="sm"
+                    variant={statusFilter === option.value ? "secondary" : "outline"}
+                    className="rounded-lg"
+                    aria-label={`状態: ${option.label}`}
+                    onClick={() => updateStatusFilter(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
 
               <div className="relative w-full max-w-sm">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

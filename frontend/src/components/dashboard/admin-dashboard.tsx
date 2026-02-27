@@ -12,8 +12,8 @@ import {
   type DashboardKpiCardId,
 } from "@/lib/kpi-alerts";
 import { useAuth } from "@/providers/auth-provider";
+import { HandoffWidget } from "@/components/dashboard/handoff-widget";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -27,12 +27,6 @@ type Snapshot = {
     todayBoard: boolean;
     shuttleBoard: boolean;
   };
-};
-
-type UpdateItem = {
-  id: string;
-  text: string;
-  when: string;
 };
 
 type DashboardCard = {
@@ -89,15 +83,6 @@ async function fetchSnapshot(options: SnapshotQueryOptions): Promise<Snapshot> {
   return snapshot;
 }
 
-async function fetchRecentUpdates(): Promise<UpdateItem[]> {
-  await new Promise((resolve) => setTimeout(resolve, 900));
-  return [
-    { id: "1", text: "山田 太郎さんの出欠が更新されました", when: "3分前" },
-    { id: "2", text: "送迎チェックが2件完了しました", when: "12分前" },
-    { id: "3", text: "新規ユーザーが作成されました", when: "24分前" },
-  ];
-}
-
 export function AdminDashboard() {
   const navigate = useNavigate();
   const currentTime = useCurrentTime();
@@ -116,8 +101,6 @@ export function AdminDashboard() {
         canReadShuttleBoard,
       }),
   });
-  const recentQuery = useQuery({ queryKey: ["dashboard", "recent"], queryFn: fetchRecentUpdates });
-
   const shuttlePendingValue = shuttleMode === "pickup"
     ? snapshotQuery.data?.shuttlePickupPending ?? null
     : snapshotQuery.data?.shuttleDropoffPending ?? null;
@@ -253,37 +236,7 @@ export function AdminDashboard() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card className="rounded-2xl border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">最近の更新</CardTitle>
-            <CardDescription>現場オペレーションの更新ログ（ダミー）</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentQuery.isPending && (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <Skeleton key={index} className="h-10 w-full" />
-                ))}
-              </div>
-            )}
-
-            {!recentQuery.isPending && (recentQuery.data?.length ?? 0) === 0 && (
-              <div className="rounded-xl border border-dashed p-8 text-center">
-                <p className="font-medium">更新はまだありません</p>
-                <p className="mt-1 text-sm text-muted-foreground">本日の操作が始まるとここに表示されます。</p>
-              </div>
-            )}
-
-            {(recentQuery.data ?? []).map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-xl border border-border/70 p-3">
-                <p className="text-sm">{item.text}</p>
-                <Badge variant="secondary" className="rounded-lg">
-                  {item.when}
-                </Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <HandoffWidget />
 
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
@@ -294,6 +247,7 @@ export function AdminDashboard() {
             <p>・出欠は 11:00 までに確定</p>
             <p>・送迎未完了はボードで再確認</p>
             <p>・記録未完了は終業前に解消</p>
+            <p>・申し送りは New バッジを優先確認</p>
           </CardContent>
         </Card>
       </section>

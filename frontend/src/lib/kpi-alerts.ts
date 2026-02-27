@@ -1,7 +1,7 @@
 export type KpiAlertLevel = "normal" | "warning" | "critical";
 export type ShuttleCardMode = "pickup" | "dropoff";
 export type DashboardKpiCardId = "scheduled" | "attendance-pending" | "shuttle-pending" | "record-pending";
-type KpiAlertKey = "attendance" | "shuttle_pickup" | "record";
+type KpiAlertKey = "attendance" | "shuttle_pickup" | "shuttle_dropoff" | "record";
 
 type KpiDeadlineRule = {
   warningAt: string;
@@ -16,6 +16,10 @@ export const KPI_DEADLINE_RULES: Record<KpiAlertKey, KpiDeadlineRule> = {
   shuttle_pickup: {
     warningAt: "09:30",
     criticalAt: "10:00",
+  },
+  shuttle_dropoff: {
+    warningAt: "16:30",
+    criticalAt: "17:00",
   },
   record: {
     warningAt: "16:30",
@@ -80,10 +84,15 @@ export function resolveKpiAlertLevel(params: {
 
 export function resolveDashboardCardAlertLevels(params: {
   now: Date;
+  shuttleMode: ShuttleCardMode;
   pendingAttendance: number;
   pendingShuttle: number;
   pendingRecord: number;
 }): Record<DashboardKpiCardId, KpiAlertLevel> {
+  const shuttleDeadlineRule = params.shuttleMode === "dropoff"
+    ? KPI_DEADLINE_RULES.shuttle_dropoff
+    : KPI_DEADLINE_RULES.shuttle_pickup;
+
   return {
     scheduled: "normal",
     "attendance-pending": resolveKpiAlertLevel({
@@ -94,7 +103,7 @@ export function resolveDashboardCardAlertLevels(params: {
     "shuttle-pending": resolveKpiAlertLevel({
       now: params.now,
       pendingCount: params.pendingShuttle,
-      deadlineRule: KPI_DEADLINE_RULES.shuttle_pickup,
+      deadlineRule: shuttleDeadlineRule,
     }),
     "record-pending": resolveKpiAlertLevel({
       now: params.now,

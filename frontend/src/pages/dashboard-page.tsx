@@ -123,6 +123,7 @@ export function DashboardPage() {
     : snapshotQuery.data?.shuttleDropoffPending ?? null;
   const alertLevels = resolveDashboardCardAlertLevels({
     now: currentTime,
+    shuttleMode,
     pendingAttendance: snapshotQuery.data?.pendingAttendance ?? 0,
     pendingShuttle: shuttlePendingValue ?? 0,
     pendingRecord: snapshotQuery.data?.recordPending ?? 0,

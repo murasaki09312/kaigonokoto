@@ -57,6 +57,7 @@ describe("kpi-alerts", () => {
   it("resolves dashboard levels from each pending counter", () => {
     const levels = resolveDashboardCardAlertLevels({
       now: new Date(2026, 1, 27, 17, 5),
+      shuttleMode: "dropoff",
       pendingAttendance: 1,
       pendingShuttle: 1,
       pendingRecord: 1,
@@ -65,5 +66,17 @@ describe("kpi-alerts", () => {
     expect(levels["attendance-pending"]).toBe("critical");
     expect(levels["shuttle-pending"]).toBe("critical");
     expect(levels["record-pending"]).toBe("critical");
+  });
+
+  it("does not mark dropoff shuttle as critical before dropoff deadline", () => {
+    const levels = resolveDashboardCardAlertLevels({
+      now: new Date(2026, 1, 27, 13, 0),
+      shuttleMode: "dropoff",
+      pendingAttendance: 0,
+      pendingShuttle: 1,
+      pendingRecord: 0,
+    });
+
+    expect(levels["shuttle-pending"]).toBe("normal");
   });
 });

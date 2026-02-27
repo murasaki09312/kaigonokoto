@@ -8,11 +8,16 @@ import { HandoffWidget } from "./handoff-widget";
 
 const mockAuthState = vi.hoisted(() => ({
   permissions: ["today_board:read"] as string[],
+  user: {
+    id: 1,
+    tenant_id: 1,
+  },
 }));
 
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => ({
     permissions: mockAuthState.permissions,
+    user: mockAuthState.user,
   }),
 }));
 

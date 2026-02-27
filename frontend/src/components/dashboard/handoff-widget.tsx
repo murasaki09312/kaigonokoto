@@ -18,14 +18,16 @@ function formatHandoffTimestamp(value: string): string {
 
 export function HandoffWidget() {
   const navigate = useNavigate();
-  const { permissions } = useAuth();
+  const { permissions, user } = useAuth();
   const [selectedHandoff, setSelectedHandoff] = useState<DashboardHandoffItem | null>(null);
   const canReadTodayBoard = permissions.includes("today_board:read");
+  const tenantId = user?.tenant_id ?? null;
+  const userId = user?.id ?? null;
 
   const handoffQuery = useQuery({
-    queryKey: ["dashboard", "handoffs"],
+    queryKey: ["dashboard", "handoffs", tenantId, userId],
     queryFn: getDashboardHandoffs,
-    enabled: canReadTodayBoard,
+    enabled: canReadTodayBoard && Boolean(tenantId),
   });
 
   const newThresholdHours = handoffQuery.data?.meta.new_threshold_hours ?? 6;

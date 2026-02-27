@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import type { LoginPayload, LoginResponse, MeResponse, User } from "@/types/auth";
+import type { AdminManagedUser, AdminUsersListResult, RoleOption } from "@/types/admin-user";
 import type {
   Client,
   ClientPayload,
@@ -158,6 +159,42 @@ export async function createUser(payload: {
 }): Promise<User> {
   try {
     const { data } = await client.post<{ user: User }>("/users", payload);
+    return data.user;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listAdminUsers(): Promise<AdminUsersListResult> {
+  try {
+    const { data } = await client.get<{
+      users: AdminManagedUser[];
+      role_options: RoleOption[];
+      meta: {
+        current_user_id: number;
+        can_manage_roles: boolean;
+      };
+    }>("/api/v1/admin/users");
+
+    return {
+      users: data.users,
+      roleOptions: data.role_options,
+      meta: data.meta,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function updateAdminUserRoles(
+  userId: number | string,
+  payload: { role_names: string[] },
+): Promise<AdminManagedUser> {
+  try {
+    const { data } = await client.patch<{ user: AdminManagedUser }>(
+      `/api/v1/admin/users/${userId}/roles`,
+      payload,
+    );
     return data.user;
   } catch (error) {
     throw normalizeError(error);

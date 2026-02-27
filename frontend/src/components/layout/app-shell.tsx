@@ -44,7 +44,7 @@ const coreNav: NavItem[] = [
   { label: "送迎", to: "/app/shuttle", icon: Car },
   { label: "記録", to: "/app/records", icon: ClipboardCheck },
   { label: "請求", to: "/app/invoices", icon: Wallet },
-  { label: "ユーザー管理", to: "/app/users", icon: Users },
+  { label: "ユーザー一覧", to: "/app/users", icon: Users },
 ];
 
 const pageTitleMap: Record<string, string> = {
@@ -55,16 +55,29 @@ const pageTitleMap: Record<string, string> = {
   "/app/shuttle": "送迎",
   "/app/records": "記録",
   "/app/invoices": "請求",
-  "/app/users": "ユーザー管理",
+  "/app/users": "ユーザー一覧",
+  "/app/settings/users": "スタッフ管理",
 };
 
-function SidebarItems({ onNavigate, showTenantAdmin }: { onNavigate?: () => void; showTenantAdmin: boolean }) {
+function SidebarItems({
+  onNavigate,
+  showTenantAdmin,
+  showStaffManagement,
+}: {
+  onNavigate?: () => void;
+  showTenantAdmin: boolean;
+  showStaffManagement: boolean;
+}) {
   const items = useMemo(() => {
-    if (showTenantAdmin) {
-      return [...coreNav, { label: "テナント管理", icon: Settings, disabled: true } satisfies NavItem];
+    const baseItems = [ ...coreNav ];
+    if (showStaffManagement) {
+      baseItems.push({ label: "スタッフ管理", to: "/app/settings/users", icon: Settings });
     }
-    return coreNav;
-  }, [showTenantAdmin]);
+    if (showTenantAdmin) {
+      return [...baseItems, { label: "テナント管理", icon: Settings, disabled: true } satisfies NavItem];
+    }
+    return baseItems;
+  }, [showStaffManagement, showTenantAdmin]);
 
   return (
     <nav className="space-y-1 px-2">
@@ -129,7 +142,10 @@ export function AppShell() {
             </div>
             <Badge variant="secondary" className="rounded-lg">MVP</Badge>
           </div>
-          <SidebarItems showTenantAdmin={permissions.includes("tenants:manage")} />
+          <SidebarItems
+            showTenantAdmin={permissions.includes("tenants:manage")}
+            showStaffManagement={permissions.includes("users:manage")}
+          />
         </aside>
 
         <div className="flex min-h-screen flex-col">
@@ -147,7 +163,11 @@ export function AppShell() {
                     <p className="text-xs text-muted-foreground">Operations Console</p>
                   </div>
                   <div className="py-4">
-                    <SidebarItems showTenantAdmin={permissions.includes("tenants:manage")} onNavigate={() => setIsOpen(false)} />
+                    <SidebarItems
+                      showTenantAdmin={permissions.includes("tenants:manage")}
+                      showStaffManagement={permissions.includes("users:manage")}
+                      onNavigate={() => setIsOpen(false)}
+                    />
                   </div>
                 </SheetContent>
               </Sheet>

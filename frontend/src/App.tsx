@@ -6,6 +6,7 @@ import { LoginPage } from "@/pages/login-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { UsersPage } from "@/pages/users-page";
 import { AdminUserRoleManagementPage } from "@/pages/admin-user-role-management-page";
+import { FacilitySettingsPage } from "@/pages/facility-settings-page";
 import { ClientsPage } from "@/pages/clients-page";
 import { ClientDetailPage } from "@/pages/client-detail-page";
 import { ReservationsPage } from "@/pages/reservations-page";
@@ -35,6 +36,7 @@ function App() {
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="settings/users" element={<AdminUserRoleManagementPage />} />
+            <Route path="settings/facility" element={<FacilitySettingsPage />} />
           </Route>
         </Route>
 

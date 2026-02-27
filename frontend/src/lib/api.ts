@@ -36,6 +36,7 @@ import type {
   InvoiceListResult,
 } from "@/types/invoice";
 import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
+import type { FacilityScale, FacilitySetting } from "@/types/facility-setting";
 
 export type ApiError = {
   code: string;
@@ -197,6 +198,27 @@ export async function updateAdminUserRoles(
       payload,
     );
     return data.user;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getFacilitySetting(): Promise<FacilitySetting> {
+  try {
+    const { data } = await client.get<{ facility_setting: FacilitySetting }>("/api/v1/settings/facility");
+    return data.facility_setting;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function updateFacilitySetting(payload: {
+  city_name: string;
+  facility_scale: FacilityScale;
+}): Promise<FacilitySetting> {
+  try {
+    const { data } = await client.patch<{ facility_setting: FacilitySetting }>("/api/v1/settings/facility", payload);
+    return data.facility_setting;
   } catch (error) {
     throw normalizeError(error);
   }

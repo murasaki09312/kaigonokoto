@@ -22,6 +22,10 @@ describe("canAccessPath", () => {
     expect(canAccessPath("/app/invoices", ["invoices:read"])).toBe(true);
   });
 
+  it("allows facility settings path with tenants:manage", () => {
+    expect(canAccessPath("/app/settings/facility", ["tenants:manage"])).toBe(true);
+  });
+
   it("rejects operations path without clients:read", () => {
     expect(canAccessPath("/app/clients", ["users:read"])).toBe(false);
   });
@@ -52,6 +56,15 @@ describe("resolvePostLoginPath", () => {
         permissions: ["today_board:read"],
       }),
     ).toBe("/app/today-board");
+  });
+
+  it("returns requested facility settings path when permitted", () => {
+    expect(
+      resolvePostLoginPath({
+        requestedPath: "/app/settings/facility",
+        permissions: ["tenants:manage"],
+      }),
+    ).toBe("/app/settings/facility");
   });
 
   it("falls back to operations path when no requested path", () => {

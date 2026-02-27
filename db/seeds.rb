@@ -14,6 +14,7 @@ permission_keys = [
   "attendances:manage",
   "care_records:manage",
   "shuttles:read",
+  "shuttles:operate",
   "shuttles:manage",
   "invoices:read",
   "invoices:manage",
@@ -30,6 +31,7 @@ end
 
 admin_role = Role.find_or_create_by!(name: "admin")
 staff_role = Role.find_or_create_by!(name: "staff")
+driver_role = Role.find_or_create_by!(name: "driver")
 
 admin_role.permissions = permissions.values
 staff_role.permissions = [
@@ -40,8 +42,14 @@ staff_role.permissions = [
   permissions.fetch("attendances:manage"),
   permissions.fetch("care_records:manage"),
   permissions.fetch("shuttles:read"),
+  permissions.fetch("shuttles:operate"),
   permissions.fetch("invoices:read"),
   permissions.fetch("reservations:read")
+]
+
+driver_role.permissions = [
+  permissions.fetch("shuttles:read"),
+  permissions.fetch("shuttles:operate")
 ]
 
 admin_user = tenant.users.find_or_initialize_by(email: "admin@example.com")
@@ -60,8 +68,17 @@ staff_user.assign_attributes(
 )
 staff_user.save!
 
+driver_user = tenant.users.find_or_initialize_by(email: "driver@example.com")
+driver_user.assign_attributes(
+  name: "Driver User",
+  password: "Password123!",
+  password_confirmation: "Password123!"
+)
+driver_user.save!
+
 admin_user.roles = [ admin_role ]
 staff_user.roles = [ staff_role ]
+driver_user.roles = [ driver_role ]
 
 tenant.clients.find_or_create_by!(name: "山田 太郎") do |client|
   client.kana = "ヤマダ タロウ"

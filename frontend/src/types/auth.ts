@@ -10,6 +10,7 @@ export type User = {
 export type MeResponse = {
   user: User;
   permissions: string[];
+  roles?: string[];
 };
 
 export type LoginPayload = {

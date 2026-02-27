@@ -1,6 +1,6 @@
 class ShuttleLegPolicy < ApplicationPolicy
   def upsert?
-    allowed?("shuttles:manage") && same_tenant_record?
+    (allowed?("shuttles:operate") || allowed?("shuttles:manage")) && same_tenant_record?
   end
 
   private

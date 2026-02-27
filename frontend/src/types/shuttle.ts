@@ -42,6 +42,10 @@ export type ShuttleBoardMeta = {
   total: number;
   pickup_counts: Record<ShuttleLegStatus, number>;
   dropoff_counts: Record<ShuttleLegStatus, number>;
+  capabilities?: {
+    can_update_leg: boolean;
+    can_manage_schedule: boolean;
+  };
 };
 
 export type ShuttleBoardResponse = {

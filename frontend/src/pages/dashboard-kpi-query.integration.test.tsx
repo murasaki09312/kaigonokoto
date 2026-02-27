@@ -14,6 +14,7 @@ import * as api from "@/lib/api";
 
 const mockAuthState = vi.hoisted(() => ({
   permissions: ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"] as string[],
+  roles: ["admin"] as string[],
 }));
 const mockCurrentTimeState = vi.hoisted(() => ({
   current: new Date("2026-02-27T09:00:00+09:00"),
@@ -22,6 +23,7 @@ const mockCurrentTimeState = vi.hoisted(() => ({
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => ({
     permissions: mockAuthState.permissions,
+    roles: mockAuthState.roles,
   }),
 }));
 vi.mock("@/hooks/useCurrentTime", () => ({
@@ -256,38 +258,88 @@ function renderWithRouter(initialEntry: string) {
   );
 }
 
+const originalPointerCaptureDescriptors: Record<
+  "hasPointerCapture" | "setPointerCapture" | "releasePointerCapture",
+  PropertyDescriptor | undefined
+> = {
+  hasPointerCapture: undefined,
+  setPointerCapture: undefined,
+  releasePointerCapture: undefined,
+};
+
+const injectedPointerCapture: Record<"hasPointerCapture" | "setPointerCapture" | "releasePointerCapture", boolean> = {
+  hasPointerCapture: false,
+  setPointerCapture: false,
+  releasePointerCapture: false,
+};
+
 describe("dashboard KPI query integration", () => {
   beforeAll(() => {
-    if (!HTMLElement.prototype.hasPointerCapture) {
+    originalPointerCaptureDescriptors.hasPointerCapture = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "hasPointerCapture",
+    );
+    originalPointerCaptureDescriptors.setPointerCapture = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "setPointerCapture",
+    );
+    originalPointerCaptureDescriptors.releasePointerCapture = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "releasePointerCapture",
+    );
+
+    if (typeof HTMLElement.prototype.hasPointerCapture !== "function") {
       Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
         value: () => false,
         configurable: true,
       });
+      injectedPointerCapture.hasPointerCapture = true;
     }
 
-    if (!HTMLElement.prototype.setPointerCapture) {
+    if (typeof HTMLElement.prototype.setPointerCapture !== "function") {
       Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
         value: () => {},
         configurable: true,
       });
+      injectedPointerCapture.setPointerCapture = true;
     }
 
-    if (!HTMLElement.prototype.releasePointerCapture) {
+    if (typeof HTMLElement.prototype.releasePointerCapture !== "function") {
       Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
         value: () => {},
         configurable: true,
       });
+      injectedPointerCapture.releasePointerCapture = true;
     }
   });
 
   afterAll(() => {
-    delete (HTMLElement.prototype as Partial<HTMLElement>).hasPointerCapture;
-    delete (HTMLElement.prototype as Partial<HTMLElement>).setPointerCapture;
-    delete (HTMLElement.prototype as Partial<HTMLElement>).releasePointerCapture;
+    if (originalPointerCaptureDescriptors.hasPointerCapture) {
+      Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", originalPointerCaptureDescriptors.hasPointerCapture);
+    } else if (injectedPointerCapture.hasPointerCapture) {
+      Reflect.deleteProperty(HTMLElement.prototype, "hasPointerCapture");
+    }
+
+    if (originalPointerCaptureDescriptors.setPointerCapture) {
+      Object.defineProperty(HTMLElement.prototype, "setPointerCapture", originalPointerCaptureDescriptors.setPointerCapture);
+    } else if (injectedPointerCapture.setPointerCapture) {
+      Reflect.deleteProperty(HTMLElement.prototype, "setPointerCapture");
+    }
+
+    if (originalPointerCaptureDescriptors.releasePointerCapture) {
+      Object.defineProperty(
+        HTMLElement.prototype,
+        "releasePointerCapture",
+        originalPointerCaptureDescriptors.releasePointerCapture,
+      );
+    } else if (injectedPointerCapture.releasePointerCapture) {
+      Reflect.deleteProperty(HTMLElement.prototype, "releasePointerCapture");
+    }
   });
 
   beforeEach(() => {
     mockAuthState.permissions = ["today_board:read", "shuttles:read", "attendances:manage", "care_records:manage"];
+    mockAuthState.roles = ["admin"];
     mockCurrentTimeState.current = new Date("2026-02-27T09:00:00+09:00");
     vi.mocked(api.getTodayBoard).mockResolvedValue(createTodayBoardResponse());
     vi.mocked(api.getShuttleBoard).mockResolvedValue(createShuttleResponse());

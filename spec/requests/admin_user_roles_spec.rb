@@ -81,6 +81,20 @@ RSpec.describe "Admin::UserRoles", type: :request do
       expect(user_emails).to contain_exactly(admin_user.email, staff_user.email)
       expect(json_body.fetch("role_options").map { |option| option.fetch("name") }).to contain_exactly("admin", "staff", "driver")
     end
+
+    it "recreates missing driver role and permissions for role options" do
+      Role.find_by(name: "driver")&.destroy!
+      Permission.where(key: %w[shuttles:read shuttles:operate]).find_each(&:destroy!)
+
+      get "/api/v1/admin/users", headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.fetch("role_options").map { |option| option.fetch("name") }).to include("driver")
+
+      driver = Role.find_by(name: "driver")
+      expect(driver).to be_present
+      expect(driver.permissions.pluck(:key)).to include("shuttles:read", "shuttles:operate")
+    end
   end
 
   describe "PATCH /api/v1/admin/users/:id/roles" do
@@ -110,6 +124,23 @@ RSpec.describe "Admin::UserRoles", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("user", "role_names")).to eq([ "driver" ])
       expect(staff_user.reload.roles.pluck(:name)).to eq([ "driver" ])
+    end
+
+    it "can update to driver even when driver role was missing before request" do
+      Role.find_by(name: "driver")&.destroy!
+      Permission.where(key: %w[shuttles:read shuttles:operate]).find_each(&:destroy!)
+
+      patch "/api/v1/admin/users/#{staff_user.id}/roles",
+        params: { role_names: [ "driver" ] }.to_json,
+        headers: auth_headers_for(admin_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("user", "role_names")).to eq([ "driver" ])
+      expect(staff_user.reload.roles.pluck(:name)).to eq([ "driver" ])
+
+      driver = Role.find_by(name: "driver")
+      expect(driver).to be_present
+      expect(driver.permissions.pluck(:key)).to include("shuttles:read", "shuttles:operate")
     end
 
     it "returns 422 when admin attempts to remove own admin role" do

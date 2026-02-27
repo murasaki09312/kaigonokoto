@@ -4,6 +4,7 @@ module Api
       class UsersController < ApplicationController
         def index
           authorize User, :index?, policy_class: ::Admin::UserRolePolicy
+          ::Admin::RoleCatalogService.ensure_driver_role!
 
           users = policy_scope(User, policy_scope_class: ::Admin::UserRolePolicy::Scope)
             .includes(:roles)
@@ -22,6 +23,7 @@ module Api
         def update_roles
           user = current_tenant.users.includes(:roles).find(params[:id])
           authorize user, :update_roles?, policy_class: ::Admin::UserRolePolicy
+          ::Admin::RoleCatalogService.ensure_driver_role!
 
           updated_user = ::Admin::UserRoleUpdateService.new(
             tenant: current_tenant,

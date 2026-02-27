@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { Activity, CheckCircle2, Clock3, Users2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getShuttleBoard, getTodayBoard } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,21 +24,43 @@ type UpdateItem = {
 
 type DashboardCard = {
   title: string;
-  value: number | undefined;
+  value: number;
   icon: typeof Users2;
   hint: string;
   to?: string;
   requiredPermission?: string;
 };
 
-async function fetchSnapshot(): Promise<Snapshot> {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return {
-    scheduled: 24,
-    pendingAttendance: 3,
-    shuttlePending: 2,
-    recordPending: 5,
+type SnapshotQueryOptions = {
+  date: string;
+  canReadTodayBoard: boolean;
+  canReadShuttleBoard: boolean;
+};
+
+async function fetchSnapshot(options: SnapshotQueryOptions): Promise<Snapshot> {
+  const snapshot: Snapshot = {
+    scheduled: 0,
+    pendingAttendance: 0,
+    shuttlePending: 0,
+    recordPending: 0,
   };
+
+  const [todayBoardResult, shuttleBoardResult] = await Promise.allSettled([
+    options.canReadTodayBoard ? getTodayBoard({ date: options.date }) : Promise.resolve(null),
+    options.canReadShuttleBoard ? getShuttleBoard({ date: options.date }) : Promise.resolve(null),
+  ]);
+
+  if (todayBoardResult.status === "fulfilled" && todayBoardResult.value) {
+    snapshot.scheduled = todayBoardResult.value.meta.total;
+    snapshot.pendingAttendance = todayBoardResult.value.meta.attendance_counts.pending ?? 0;
+    snapshot.recordPending = todayBoardResult.value.meta.care_record_pending ?? 0;
+  }
+
+  if (shuttleBoardResult.status === "fulfilled" && shuttleBoardResult.value) {
+    snapshot.shuttlePending = shuttleBoardResult.value.meta.pickup_counts.pending ?? 0;
+  }
+
+  return snapshot;
 }
 
 async function fetchRecentUpdates(): Promise<UpdateItem[]> {
@@ -51,19 +75,31 @@ async function fetchRecentUpdates(): Promise<UpdateItem[]> {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { permissions } = useAuth();
-  const snapshotQuery = useQuery({ queryKey: ["dashboard", "snapshot"], queryFn: fetchSnapshot });
+  const targetDate = format(new Date(), "yyyy-MM-dd");
+  const canReadTodayBoard = permissions.includes("today_board:read");
+  const canReadShuttleBoard = permissions.includes("shuttles:read");
+
+  const snapshotQuery = useQuery({
+    queryKey: ["dashboard", "snapshot", targetDate, canReadTodayBoard, canReadShuttleBoard],
+    queryFn: () =>
+      fetchSnapshot({
+        date: targetDate,
+        canReadTodayBoard,
+        canReadShuttleBoard,
+      }),
+  });
   const recentQuery = useQuery({ queryKey: ["dashboard", "recent"], queryFn: fetchRecentUpdates });
 
   const cards: DashboardCard[] = [
     {
       title: "今日の予定人数",
-      value: snapshotQuery.data?.scheduled,
+      value: snapshotQuery.data?.scheduled ?? 0,
       icon: Users2,
       hint: "本日入所予定",
     },
     {
       title: "未出欠",
-      value: snapshotQuery.data?.pendingAttendance,
+      value: snapshotQuery.data?.pendingAttendance ?? 0,
       icon: Clock3,
       hint: "入力待ち",
       to: "/app/today-board?filter=attendance_pending",
@@ -71,7 +107,7 @@ export function DashboardPage() {
     },
     {
       title: "送迎未完了",
-      value: snapshotQuery.data?.shuttlePending,
+      value: snapshotQuery.data?.shuttlePending ?? 0,
       icon: Activity,
       hint: "乗降チェック待ち",
       to: "/app/shuttle?direction=pickup&status=pending",
@@ -79,7 +115,7 @@ export function DashboardPage() {
     },
     {
       title: "記録未完了",
-      value: snapshotQuery.data?.recordPending,
+      value: snapshotQuery.data?.recordPending ?? 0,
       icon: CheckCircle2,
       hint: "ケア記録待ち",
       to: "/app/records?tab=unrecorded",

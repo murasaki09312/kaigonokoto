@@ -35,6 +35,7 @@ import type {
   InvoiceLine,
   InvoiceListResult,
 } from "@/types/invoice";
+import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
 
 export type ApiError = {
   code: string;
@@ -436,6 +437,15 @@ export async function getTodayBoard(params?: { date?: string }): Promise<TodayBo
     const query = searchParams.toString();
     const path = query.length > 0 ? `/api/v1/today_board?${query}` : "/api/v1/today_board";
     const { data } = await client.get<TodayBoardResponse>(path);
+    return data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getDashboardHandoffs(): Promise<DashboardHandoffResponse> {
+  try {
+    const { data } = await client.get<DashboardHandoffResponse>("/api/v1/dashboard/handoffs");
     return data;
   } catch (error) {
     throw normalizeError(error);

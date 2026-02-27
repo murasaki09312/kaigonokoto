@@ -10,6 +10,7 @@ import { CareRecordsPage } from "@/pages/care-records-page";
 import type { CareRecord, TodayBoardResponse } from "@/types/today-board";
 import type { Reservation } from "@/types/reservation";
 import type { ShuttleBoardResponse, ShuttleDirection, ShuttleLegStatus } from "@/types/shuttle";
+import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
 import * as api from "@/lib/api";
 
 const mockAuthState = vi.hoisted(() => ({
@@ -33,6 +34,7 @@ vi.mock("@/hooks/useCurrentTime", () => ({
 vi.mock("@/lib/api", () => ({
   getTodayBoard: vi.fn(),
   getShuttleBoard: vi.fn(),
+  getDashboardHandoffs: vi.fn(),
   upsertAttendance: vi.fn(),
   upsertCareRecord: vi.fn(),
   upsertShuttleLeg: vi.fn(),
@@ -199,6 +201,29 @@ function createShuttleResponse(): ShuttleBoardResponse {
   };
 }
 
+function createDashboardHandoffResponse(): DashboardHandoffResponse {
+  return {
+    handoffs: [
+      {
+        care_record_id: 2,
+        reservation_id: 2,
+        client_id: 2,
+        client_name: "利用者B",
+        recorded_by_user_id: 1,
+        recorded_by_user_name: "記録スタッフ",
+        handoff_note: "食後の様子を家族へ共有済み",
+        created_at: "2026-02-27T09:30:00+09:00",
+        is_new: true,
+      },
+    ],
+    meta: {
+      total: 1,
+      window_hours: 24,
+      new_threshold_hours: 6,
+    },
+  };
+}
+
 function LocationEcho() {
   const location = useLocation();
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
@@ -343,6 +368,7 @@ describe("dashboard KPI query integration", () => {
     mockCurrentTimeState.current = new Date("2026-02-27T09:00:00+09:00");
     vi.mocked(api.getTodayBoard).mockResolvedValue(createTodayBoardResponse());
     vi.mocked(api.getShuttleBoard).mockResolvedValue(createShuttleResponse());
+    vi.mocked(api.getDashboardHandoffs).mockResolvedValue(createDashboardHandoffResponse());
     vi.mocked(api.upsertAttendance).mockResolvedValue({} as never);
     vi.mocked(api.upsertCareRecord).mockResolvedValue({} as never);
     vi.mocked(api.upsertShuttleLeg).mockResolvedValue({} as never);

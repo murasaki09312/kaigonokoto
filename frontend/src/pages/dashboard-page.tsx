@@ -10,10 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type Snapshot = {
-  scheduled: number;
-  pendingAttendance: number;
-  shuttlePending: number;
-  recordPending: number;
+  scheduled: number | null;
+  pendingAttendance: number | null;
+  shuttlePending: number | null;
+  recordPending: number | null;
+  errors: {
+    todayBoard: boolean;
+    shuttleBoard: boolean;
+  };
 };
 
 type UpdateItem = {
@@ -23,12 +27,15 @@ type UpdateItem = {
 };
 
 type DashboardCard = {
+  id: string;
   title: string;
-  value: number;
+  value: number | null;
   icon: typeof Users2;
   hint: string;
+  sourceError: boolean;
   to?: string;
   requiredPermission?: string;
+  dataPermission?: string;
 };
 
 type SnapshotQueryOptions = {
@@ -39,10 +46,14 @@ type SnapshotQueryOptions = {
 
 async function fetchSnapshot(options: SnapshotQueryOptions): Promise<Snapshot> {
   const snapshot: Snapshot = {
-    scheduled: 0,
-    pendingAttendance: 0,
-    shuttlePending: 0,
-    recordPending: 0,
+    scheduled: null,
+    pendingAttendance: null,
+    shuttlePending: null,
+    recordPending: null,
+    errors: {
+      todayBoard: false,
+      shuttleBoard: false,
+    },
   };
 
   const [todayBoardResult, shuttleBoardResult] = await Promise.allSettled([
@@ -54,10 +65,14 @@ async function fetchSnapshot(options: SnapshotQueryOptions): Promise<Snapshot> {
     snapshot.scheduled = todayBoardResult.value.meta.total;
     snapshot.pendingAttendance = todayBoardResult.value.meta.attendance_counts.pending ?? 0;
     snapshot.recordPending = todayBoardResult.value.meta.care_record_pending ?? 0;
+  } else if (options.canReadTodayBoard) {
+    snapshot.errors.todayBoard = true;
   }
 
   if (shuttleBoardResult.status === "fulfilled" && shuttleBoardResult.value) {
     snapshot.shuttlePending = shuttleBoardResult.value.meta.pickup_counts.pending ?? 0;
+  } else if (options.canReadShuttleBoard) {
+    snapshot.errors.shuttleBoard = true;
   }
 
   return snapshot;
@@ -92,34 +107,46 @@ export function DashboardPage() {
 
   const cards: DashboardCard[] = [
     {
+      id: "scheduled",
       title: "今日の予定人数",
-      value: snapshotQuery.data?.scheduled ?? 0,
+      value: snapshotQuery.data?.scheduled ?? null,
       icon: Users2,
       hint: "本日入所予定",
+      sourceError: snapshotQuery.data?.errors.todayBoard ?? false,
+      dataPermission: "today_board:read",
     },
     {
+      id: "attendance-pending",
       title: "未出欠",
-      value: snapshotQuery.data?.pendingAttendance ?? 0,
+      value: snapshotQuery.data?.pendingAttendance ?? null,
       icon: Clock3,
       hint: "入力待ち",
+      sourceError: snapshotQuery.data?.errors.todayBoard ?? false,
       to: "/app/today-board?filter=attendance_pending",
       requiredPermission: "today_board:read",
+      dataPermission: "today_board:read",
     },
     {
+      id: "shuttle-pending",
       title: "送迎未完了",
-      value: snapshotQuery.data?.shuttlePending ?? 0,
+      value: snapshotQuery.data?.shuttlePending ?? null,
       icon: Activity,
       hint: "乗降チェック待ち",
+      sourceError: snapshotQuery.data?.errors.shuttleBoard ?? false,
       to: "/app/shuttle?direction=pickup&status=pending",
       requiredPermission: "shuttles:read",
+      dataPermission: "shuttles:read",
     },
     {
+      id: "record-pending",
       title: "記録未完了",
-      value: snapshotQuery.data?.recordPending ?? 0,
+      value: snapshotQuery.data?.recordPending ?? null,
       icon: CheckCircle2,
       hint: "ケア記録待ち",
+      sourceError: snapshotQuery.data?.errors.todayBoard ?? false,
       to: "/app/records?tab=unrecorded",
       requiredPermission: "today_board:read",
+      dataPermission: "today_board:read",
     },
   ];
 
@@ -132,19 +159,33 @@ export function DashboardPage() {
           const canNavigate = isActionable
             && (!card.requiredPermission || permissions.includes(card.requiredPermission));
           const destination = canNavigate && card.to ? card.to : null;
+          const canViewData = !card.dataPermission || permissions.includes(card.dataPermission);
+          const hasValue = card.value !== null;
+          const valueText = hasValue ? String(card.value) : "--";
+          const hintText = snapshotQuery.isPending
+            ? card.hint
+            : hasValue
+              ? card.hint
+              : canViewData && card.sourceError
+                ? "取得失敗"
+                : "権限が必要";
+          const activateCard = () => {
+            if (destination) navigate(destination);
+          };
 
           return (
             <Card
-              key={card.title}
-              role={canNavigate ? "button" : undefined}
-              tabIndex={canNavigate ? 0 : undefined}
-              aria-disabled={isActionable && !canNavigate ? true : undefined}
-              onClick={destination ? () => navigate(destination) : undefined}
-              onKeyDown={destination
+              key={card.id}
+              data-testid={`kpi-card-${card.id}`}
+              role={isActionable ? "button" : undefined}
+              tabIndex={isActionable ? 0 : undefined}
+              aria-disabled={isActionable ? !canNavigate : undefined}
+              onClick={isActionable ? activateCard : undefined}
+              onKeyDown={isActionable
                 ? (event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      navigate(destination);
+                      activateCard();
                     }
                   }
                 : undefined}
@@ -152,7 +193,7 @@ export function DashboardPage() {
                 "rounded-2xl border-border/70 shadow-sm",
                 isActionable && "transition-all duration-200",
                 canNavigate && "cursor-pointer hover:-translate-y-1 hover:shadow-md",
-                isActionable && !canNavigate && "opacity-60",
+                isActionable && !canNavigate && "cursor-not-allowed opacity-60",
               )}
             >
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -163,9 +204,19 @@ export function DashboardPage() {
                 {snapshotQuery.isPending ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
-                  <div className="text-3xl font-semibold tracking-tight">{card.value ?? 0}</div>
+                  <div data-testid={`kpi-value-${card.id}`} className="text-3xl font-semibold tracking-tight">
+                    {valueText}
+                  </div>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">{card.hint}</p>
+                <p
+                  data-testid={`kpi-hint-${card.id}`}
+                  className={cn(
+                    "mt-1 text-xs",
+                    snapshotQuery.isPending || hasValue ? "text-muted-foreground" : "text-amber-700",
+                  )}
+                >
+                  {hintText}
+                </p>
               </CardContent>
             </Card>
           );

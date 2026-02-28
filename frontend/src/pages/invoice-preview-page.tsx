@@ -28,6 +28,10 @@ function formatQuantity(value: number): string {
   return value.toFixed(2);
 }
 
+function formatCopaymentRate(rate: number): string {
+  return `${Math.round(rate * 10)}割`;
+}
+
 function formatApiError(error: unknown, fallbackMessage: string): string {
   if (typeof error === "object" && error !== null && "message" in error) {
     return String((error as ApiError).message);
@@ -153,7 +157,7 @@ export function InvoicePreviewPage() {
             <p className="text-sm text-muted-foreground">請求金額（利用者負担額）</p>
             <p className="mt-2 text-4xl font-bold tracking-tight">{formatCurrency(invoice.copayment_amount)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              負担割合: {Math.round(invoice.copayment_rate * 100)}%
+              負担割合: {formatCopaymentRate(invoice.copayment_rate)}
             </p>
           </section>
 
@@ -162,7 +166,7 @@ export function InvoicePreviewPage() {
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">総費用（保険内）</span>
-                <span className="font-medium">{formatCurrency(invoice.total_amount)}</span>
+                <span className="font-medium">{formatCurrency(invoice.subtotal_amount)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">保険請求分</span>
@@ -192,9 +196,7 @@ export function InvoicePreviewPage() {
                   <TableRow>
                     <TableHead>日付</TableHead>
                     <TableHead>項目</TableHead>
-                    <TableHead className="text-right">数量</TableHead>
-                    <TableHead className="text-right">単価</TableHead>
-                    <TableHead className="text-right">小計</TableHead>
+                    <TableHead className="text-right">単位数</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -202,9 +204,7 @@ export function InvoicePreviewPage() {
                     <TableRow key={line.id}>
                       <TableCell>{line.service_date}</TableCell>
                       <TableCell>{line.item_name}</TableCell>
-                      <TableCell className="text-right">{formatQuantity(line.quantity)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(line.unit_price)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(line.line_total)}</TableCell>
+                      <TableCell className="text-right">{formatQuantity(line.units)} 単位</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

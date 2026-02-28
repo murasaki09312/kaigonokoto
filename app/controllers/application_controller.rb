@@ -88,6 +88,7 @@ class ApplicationController < ActionController::API
       emergency_contact_phone: client.emergency_contact_phone,
       notes: client.notes,
       status: client.status,
+      copayment_rate: client.copayment_rate,
       line_notification_available: line_summary.fetch(:line_notification_available),
       line_linked_family_count: line_summary.fetch(:line_linked_family_count),
       line_enabled_family_count: line_summary.fetch(:line_enabled_family_count),
@@ -220,7 +221,7 @@ class ApplicationController < ActionController::API
   end
 
   def invoice_breakdown_response(invoice)
-    total_cost_yen = Billing::YenAmount.new(invoice.total_amount)
+    total_cost_yen = Billing::YenAmount.new(invoice.subtotal_amount)
     breakdown = Billing::CopaymentBreakdownService.new.calculate(
       total_cost_yen: total_cost_yen,
       excess_copayment_yen: Billing::YenAmount.new(0),
@@ -247,10 +248,20 @@ class ApplicationController < ActionController::API
       return normalized_rate if ALLOWED_COPAYMENT_RATE_STRINGS.include?(normalized_rate)
     end
 
-    nil
+    copayment_rate_from_client(invoice.client)
+  end
+
+  def copayment_rate_from_client(client)
+    return nil if client.blank?
+    return nil unless [ 1, 2, 3 ].include?(client.copayment_rate)
+
+    "0.#{client.copayment_rate}"
   end
 
   def invoice_line_response(invoice_line)
+    units = invoice_line.metadata&.fetch("units", nil)
+    units_value = units.is_a?(Numeric) ? units.to_i : invoice_line.line_total
+
     {
       id: invoice_line.id,
       tenant_id: invoice_line.tenant_id,
@@ -259,9 +270,7 @@ class ApplicationController < ActionController::API
       price_item_id: invoice_line.price_item_id,
       service_date: invoice_line.service_date,
       item_name: invoice_line.item_name,
-      quantity: invoice_line.quantity.to_f,
-      unit_price: invoice_line.unit_price,
-      line_total: invoice_line.line_total,
+      units: units_value,
       metadata: invoice_line.metadata,
       created_at: invoice_line.created_at,
       updated_at: invoice_line.updated_at

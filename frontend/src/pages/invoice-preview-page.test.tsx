@@ -31,7 +31,7 @@ function createInvoiceResponse() {
       billing_month: "2026-02",
       status: "draft" as const,
       subtotal_amount: 163500,
-      total_amount: 163500,
+      total_amount: 16350,
       copayment_rate: 0.1,
       insurance_claim_amount: 147150,
       insured_copayment_amount: 16350,
@@ -52,9 +52,7 @@ function createInvoiceResponse() {
         price_item_id: 1,
         service_date: "2026-02-05",
         item_name: "通所介護基本利用料",
-        quantity: 1,
-        unit_price: 1200,
-        line_total: 1200,
+        units: 1200,
         metadata: {},
         created_at: "2026-02-28T10:00:00+09:00",
         updated_at: "2026-02-28T10:00:00+09:00",
@@ -98,6 +96,8 @@ describe("InvoicePreviewPage", () => {
     expect(screen.getAllByText("￥16,350").length).toBeGreaterThan(0);
     expect(screen.getByText("保険請求分")).toBeTruthy();
     expect(screen.getByText("￥147,150")).toBeTruthy();
+    expect(screen.getByText("負担割合: 1割")).toBeTruthy();
+    expect(screen.getByText("1200 単位")).toBeTruthy();
   });
 
   it("calls window.print when print button is clicked", async () => {

@@ -63,7 +63,7 @@ class InvoiceGenerationService
           invoice.invoice_lines.destroy_all if replacing
           build_invoice_lines!(invoice: invoice, attendances: attendances, price_item: price_item)
 
-          invoice.recalculate_totals!
+          apply_invoice_amounts!(invoice: invoice)
           invoice.save!
         end
 
@@ -110,8 +110,11 @@ class InvoiceGenerationService
   end
 
   def build_invoice_lines!(invoice:, attendances:, price_item:)
+    copayment_rate = copayment_rate_decimal_for(invoice.client)
+
     attendances.each do |attendance|
       reservation = attendance.reservation
+      units = units_for(price_item: price_item)
 
       invoice.invoice_lines.create!(
         tenant: @tenant,
@@ -120,13 +123,55 @@ class InvoiceGenerationService
         service_date: reservation.service_date,
         item_name: price_item.name,
         quantity: 1.0,
-        unit_price: price_item.unit_price,
-        line_total: price_item.unit_price,
+        unit_price: units,
+        line_total: units,
         metadata: {
           reservation_id: reservation.id,
-          attendance_status: attendance.status
+          attendance_status: attendance.status,
+          units: units,
+          copayment_rate: copayment_rate.to_s("F")
         }
       )
+    end
+  end
+
+  def apply_invoice_amounts!(invoice:)
+    insured_units = Billing::CareServiceUnit.new(invoice.invoice_lines.sum(:line_total))
+    result = Billing::InvoiceCalculationService.new.calculate(
+      insured_units: insured_units,
+      self_pay_units: Billing::CareServiceUnit.new(0),
+      regional_multiplier: regional_multiplier,
+      copayment_rate: copayment_rate_decimal_for(invoice.client)
+    )
+
+    invoice.subtotal_amount = result.total_cost_yen.value
+    invoice.total_amount = result.final_copayment_yen.value
+  end
+
+  def units_for(price_item:)
+    units = Integer(price_item.unit_price, exception: false)
+    return units if units&.positive?
+
+    raise ActiveRecord::RecordInvalid, price_item
+  end
+
+  def copayment_rate_decimal_for(client)
+    case client.copayment_rate
+    when 1 then BigDecimal("0.1")
+    when 2 then BigDecimal("0.2")
+    when 3 then BigDecimal("0.3")
+    else
+      raise ActiveRecord::RecordInvalid, client
+    end
+  end
+
+  def regional_multiplier
+    @regional_multiplier ||= begin
+      city_name = @tenant.city_name.presence || "目黒区"
+      area_grade = Billing::AreaGradeResolver.new.resolve(city_name: city_name)
+      area_grade.to_regional_multiplier
+    rescue ArgumentError => exception
+      raise ActiveRecord::RecordNotFound, "Regional multiplier is unavailable: #{exception.message}"
     end
   end
 

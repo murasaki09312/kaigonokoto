@@ -29,9 +29,7 @@ export type InvoiceLine = {
   price_item_id: number | null;
   service_date: string;
   item_name: string;
-  quantity: number;
-  unit_price: number;
-  line_total: number;
+  units: number;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

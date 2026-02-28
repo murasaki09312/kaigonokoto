@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { generateInvoices, listInvoices, type ApiError } from "@/lib/api";
 import type { Invoice } from "@/types/invoice";
@@ -186,6 +187,7 @@ export function InvoicesPage() {
                     <TableHead>ステータス</TableHead>
                     <TableHead>合計金額</TableHead>
                     <TableHead>生成日時</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -201,6 +203,11 @@ export function InvoicesPage() {
                       </TableCell>
                       <TableCell>{formatCurrency(invoice.total_amount)}</TableCell>
                       <TableCell>{formatGeneratedAt(invoice.generated_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm" className="rounded-lg">
+                          <Link to={`/app/invoices/${invoice.id}`}>プレビュー</Link>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

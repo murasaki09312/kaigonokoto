@@ -130,12 +130,14 @@ export function AppShell() {
 
   const pageTitle = pathname.startsWith("/app/clients/")
     ? "利用者詳細"
+    : pathname.startsWith("/app/invoices/")
+      ? "請求書プレビュー"
     : (pageTitleMap[pathname] ?? "kaigonokoto");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted/60 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-muted/60 to-background print:bg-white">
       <div className="mx-auto grid min-h-screen w-full max-w-[1600px] lg:grid-cols-[250px_1fr]">
-        <aside className="hidden border-r border-border/80 bg-background/70 px-3 py-4 backdrop-blur-sm lg:block">
+        <aside className="hidden border-r border-border/80 bg-background/70 px-3 py-4 backdrop-blur-sm print:hidden lg:block">
           <div className="mb-6 flex items-center justify-between px-2">
             <div>
               <p className="text-sm font-semibold tracking-tight">kaigonokoto</p>
@@ -150,7 +152,7 @@ export function AppShell() {
         </aside>
 
         <div className="flex min-h-screen flex-col">
-          <header className="sticky top-0 z-20 border-b border-border/80 bg-background/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-8">
+          <header className="sticky top-0 z-20 border-b border-border/80 bg-background/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden lg:px-8">
             <div className="flex items-center gap-3">
               <Sheet open={isOpen} onOpenChange={setIsOpen}>
                 <SheetTrigger asChild>
@@ -210,13 +212,13 @@ export function AppShell() {
             </div>
           </header>
 
-          <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-            <div className="mx-auto w-full max-w-7xl">
+          <main className="flex-1 px-4 py-6 print:p-0 lg:px-8 lg:py-8">
+            <div className="mx-auto w-full max-w-7xl print:max-w-none">
               <Outlet />
             </div>
           </main>
 
-          <footer className="px-4 pb-4 lg:px-8">
+          <footer className="px-4 pb-4 print:hidden lg:px-8">
             <Separator />
             <p className="pt-3 text-xs text-muted-foreground">kaigonokoto · API mode MVP</p>
           </footer>

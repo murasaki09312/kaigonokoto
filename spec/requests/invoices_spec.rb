@@ -254,6 +254,11 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("invoice", "id")).to eq(invoice.id)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "excess_copayment_amount")).to eq(0)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
       expect(json_body.fetch("invoice_lines").size).to eq(1)
       expect(json_body.fetch("invoice_lines").first.fetch("attendance_id")).to eq(a_attendance_present_1.id)
     end

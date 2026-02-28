@@ -193,6 +193,8 @@ class ApplicationController < ActionController::API
   end
 
   def invoice_response(invoice, line_count: nil)
+    breakdown = invoice_breakdown_response(invoice)
+
     {
       id: invoice.id,
       tenant_id: invoice.tenant_id,
@@ -202,11 +204,31 @@ class ApplicationController < ActionController::API
       status: invoice.status,
       subtotal_amount: invoice.subtotal_amount,
       total_amount: invoice.total_amount,
+      copayment_rate: breakdown[:copayment_rate],
+      insurance_claim_amount: breakdown[:insurance_claim_amount],
+      insured_copayment_amount: breakdown[:insured_copayment_amount],
+      excess_copayment_amount: breakdown[:excess_copayment_amount],
+      copayment_amount: breakdown[:copayment_amount],
       line_count: line_count,
       generated_at: invoice.generated_at,
       generated_by_user_id: invoice.generated_by_user_id,
       created_at: invoice.created_at,
       updated_at: invoice.updated_at
+    }
+  end
+
+  def invoice_breakdown_response(invoice)
+    # MVP: client-specific burden ratio is not modeled yet, so apply 10% copayment by default.
+    copayment_rate = 0.1
+    insurance_claim_amount = (invoice.total_amount * 0.9).floor
+    insured_copayment_amount = invoice.total_amount - insurance_claim_amount
+
+    {
+      copayment_rate: copayment_rate,
+      insurance_claim_amount: insurance_claim_amount,
+      insured_copayment_amount: insured_copayment_amount,
+      excess_copayment_amount: 0,
+      copayment_amount: insured_copayment_amount
     }
   end
 

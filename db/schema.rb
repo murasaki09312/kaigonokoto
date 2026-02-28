@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_28_123000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_28_143000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -137,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_123000) do
   create_table "invoices", force: :cascade do |t|
     t.date "billing_month", null: false
     t.bigint "client_id", null: false
+    t.integer "copayment_rate", default: 1, null: false
     t.datetime "created_at", null: false
     t.datetime "generated_at"
     t.bigint "generated_by_user_id"
@@ -151,6 +152,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_123000) do
     t.index ["tenant_id", "client_id", "billing_month"], name: "index_invoices_on_tenant_id_and_client_id_and_billing_month", unique: true
     t.index ["tenant_id", "status"], name: "index_invoices_on_tenant_id_and_status"
     t.index ["tenant_id"], name: "index_invoices_on_tenant_id"
+    t.check_constraint "copayment_rate = ANY (ARRAY[1, 2, 3])", name: "invoices_copayment_rate_range"
   end
 
   create_table "notification_logs", force: :cascade do |t|

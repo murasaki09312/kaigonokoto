@@ -2,6 +2,7 @@ class ApplicationController < ActionController::API
   include Pundit::Authorization
 
   ALLOWED_COPAYMENT_RATE_STRINGS = %w[0.1 0.2 0.3].freeze
+  DEFAULT_COPAYMENT_RATE = "0.1".freeze
 
   before_action :authenticate_request
 
@@ -238,24 +239,24 @@ class ApplicationController < ActionController::API
   end
 
   def extract_invoice_copayment_rate(invoice)
-    return nil unless invoice.association(:invoice_lines).loaded?
+    if invoice.association(:invoice_lines).loaded?
+      invoice.invoice_lines.each do |line|
+        rate = line.metadata&.fetch("copayment_rate", nil)
+        next if rate.blank?
 
-    invoice.invoice_lines.each do |line|
-      rate = line.metadata&.fetch("copayment_rate", nil)
-      next if rate.blank?
-
-      normalized_rate = rate.to_s
-      return normalized_rate if ALLOWED_COPAYMENT_RATE_STRINGS.include?(normalized_rate)
+        normalized_rate = rate.to_s
+        return normalized_rate if ALLOWED_COPAYMENT_RATE_STRINGS.include?(normalized_rate)
+      end
     end
 
-    copayment_rate_from_client(invoice.client)
+    copayment_rate_from_invoice(invoice) || DEFAULT_COPAYMENT_RATE
   end
 
-  def copayment_rate_from_client(client)
-    return nil if client.blank?
-    return nil unless [ 1, 2, 3 ].include?(client.copayment_rate)
+  def copayment_rate_from_invoice(invoice)
+    return nil if invoice.blank?
+    return nil unless [ 1, 2, 3 ].include?(invoice.copayment_rate)
 
-    "0.#{client.copayment_rate}"
+    "0.#{invoice.copayment_rate}"
   end
 
   def invoice_line_response(invoice_line)

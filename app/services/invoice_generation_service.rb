@@ -55,6 +55,7 @@ class InvoiceGenerationService
         ActiveRecord::Base.transaction do
           invoice.assign_attributes(
             status: :draft,
+            copayment_rate: copayment_rate_for_snapshot(invoice.client),
             generated_at: Time.current,
             generated_by_user: @actor_user
           )
@@ -110,7 +111,7 @@ class InvoiceGenerationService
   end
 
   def build_invoice_lines!(invoice:, attendances:, price_item:)
-    copayment_rate = copayment_rate_decimal_for(invoice.client)
+    copayment_rate = copayment_rate_decimal_for(invoice.copayment_rate, record: invoice)
 
     attendances.each do |attendance|
       reservation = attendance.reservation
@@ -141,7 +142,7 @@ class InvoiceGenerationService
       insured_units: insured_units,
       self_pay_units: Billing::CareServiceUnit.new(0),
       regional_multiplier: regional_multiplier,
-      copayment_rate: copayment_rate_decimal_for(invoice.client)
+      copayment_rate: copayment_rate_decimal_for(invoice.copayment_rate, record: invoice)
     )
 
     invoice.subtotal_amount = result.total_cost_yen.value
@@ -155,13 +156,20 @@ class InvoiceGenerationService
     raise ActiveRecord::RecordInvalid, price_item
   end
 
-  def copayment_rate_decimal_for(client)
-    case client.copayment_rate
+  def copayment_rate_for_snapshot(client)
+    rate = Integer(client.copayment_rate, exception: false)
+    return rate if [ 1, 2, 3 ].include?(rate)
+
+    raise ActiveRecord::RecordInvalid, client
+  end
+
+  def copayment_rate_decimal_for(rate, record:)
+    case rate
     when 1 then BigDecimal("0.1")
     when 2 then BigDecimal("0.2")
     when 3 then BigDecimal("0.3")
     else
-      raise ActiveRecord::RecordInvalid, client
+      raise ActiveRecord::RecordInvalid, record
     end
   end
 

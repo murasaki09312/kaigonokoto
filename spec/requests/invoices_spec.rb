@@ -330,6 +330,24 @@ RSpec.describe "Invoices", type: :request do
       expect(json_body.dig("invoice", "copayment_amount")).to eq(1_308)
     end
 
+    it "keeps historical invoice breakdown immutable after client copayment changes" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+
+      line.update!(metadata: line.metadata.except("copayment_rate"))
+      tenant_a_client_1.update!(copayment_rate: 2)
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(invoice.reload.copayment_rate).to eq(1)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(11_772)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(1_308)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(1_308)
+    end
+
     it "returns 404 for another tenant invoice id" do
       post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
       other_tenant_user = tenant_b.users.create!(

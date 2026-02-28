@@ -12,6 +12,7 @@ class Invoice < ApplicationRecord
 
   validates :billing_month, presence: true
   validates :status, presence: true
+  validates :copayment_rate, inclusion: { in: [ 1, 2, 3 ] }
   validates :subtotal_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :total_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :client_id, uniqueness: { scope: [ :tenant_id, :billing_month ] }

@@ -34,6 +34,25 @@ RSpec.describe Billing::MonthlyReceiptAggregator do
       expect(result).to eq([])
     end
 
+    it "returns receipt items sorted by service_code ascending" do
+      records = [
+        Billing::DailyServiceRecord.new(
+          base_units: Billing::CareServiceUnit.new(658),
+          base_service_code: "151111",
+          additions: [ Billing::Addition::IndividualFunctionalTraining.new ]
+        ),
+        Billing::DailyServiceRecord.new(
+          base_units: Billing::CareServiceUnit.new(658),
+          base_service_code: "151111",
+          additions: [ Billing::Addition::Bathing.new ]
+        )
+      ]
+
+      result = described_class.new.aggregate(daily_records: records)
+
+      expect(result.map(&:service_code)).to eq(%w[151111 155011 155052])
+    end
+
     it "raises for invalid daily_records type" do
       expect do
         described_class.new.aggregate(daily_records: "invalid")

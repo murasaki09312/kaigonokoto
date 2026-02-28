@@ -15,7 +15,7 @@ module Billing
           unit_score: unit_score,
           count: group.size
         )
-      end
+      end.sort_by(&:service_code)
     end
 
     private

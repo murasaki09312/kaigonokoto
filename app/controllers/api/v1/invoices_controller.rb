@@ -29,6 +29,18 @@ module Api
         }, status: :ok
       end
 
+      def monthly_integration_case
+        authorize Invoice, :index?, policy_class: InvoicePolicy
+        result = Billing::MonthlyIntegrationCase.new.call
+
+        render json: {
+          scenario: result.scenario,
+          calculated: result.calculated,
+          expected: result.expected,
+          matches_expected: result.matches_expected
+        }, status: :ok
+      end
+
       def generate
         authorize Invoice, :generate?, policy_class: InvoicePolicy
         month_start = parse_month_param(params.fetch(:month), allow_blank: false)

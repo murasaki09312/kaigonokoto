@@ -47,3 +47,33 @@ export type InvoiceGenerateResult = {
   skippedExisting: number;
   skippedFixed: number;
 };
+
+export type InvoiceMonthlyIntegrationCase = {
+  scenario: {
+    care_level: string;
+    benefit_limit_units: number;
+    monthly_use_count: number;
+    base_units: number;
+    addition_units: Array<{
+      code: string;
+      name: string;
+      units: number;
+    }>;
+    improvement_rate: string;
+  };
+  calculated: {
+    daily_total_units: number;
+    monthly_total_units: number;
+    insured_units: number;
+    self_pay_units: number;
+    improvement_units: number;
+  };
+  expected: {
+    daily_total_units: number;
+    monthly_total_units: number;
+    insured_units: number;
+    self_pay_units: number;
+    improvement_units: number;
+  };
+  matches_expected: boolean;
+};

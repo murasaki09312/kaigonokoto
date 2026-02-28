@@ -4,8 +4,8 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { generateInvoices, listInvoices, type ApiError } from "@/lib/api";
-import type { Invoice } from "@/types/invoice";
+import { generateInvoices, getInvoiceMonthlyIntegrationCase, listInvoices, type ApiError } from "@/lib/api";
+import type { Invoice, InvoiceMonthlyIntegrationCase } from "@/types/invoice";
 import { useAuth } from "@/providers/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,16 @@ function formatGeneratedAt(value: string | null): string {
   });
 }
 
+type IntegrationMetricKey = keyof InvoiceMonthlyIntegrationCase["calculated"];
+
+const integrationMetrics: Array<{ key: IntegrationMetricKey; label: string }> = [
+  { key: "daily_total_units", label: "1日合計単位" },
+  { key: "monthly_total_units", label: "月合計単位" },
+  { key: "insured_units", label: "保険給付対象単位" },
+  { key: "self_pay_units", label: "自己負担単位" },
+  { key: "improvement_units", label: "処遇改善加算単位" },
+];
+
 export function InvoicesPage() {
   const { permissions } = useAuth();
   const canReadInvoices = permissions.includes("invoices:read");
@@ -63,6 +73,12 @@ export function InvoicesPage() {
   const invoicesQuery = useQuery({
     queryKey: ["invoices", month],
     queryFn: () => listInvoices({ month }),
+    enabled: canReadInvoices,
+  });
+
+  const integrationCaseQuery = useQuery({
+    queryKey: ["invoices", "monthly-integration-case"],
+    queryFn: getInvoiceMonthlyIntegrationCase,
     enabled: canReadInvoices,
   });
 
@@ -206,6 +222,99 @@ export function InvoicesPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border-border/70 shadow-sm">
+        <CardHeader className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">限界突破ケース検証</CardTitle>
+              <CardDescription>
+                Billingドメイン連携（774→17028→16765/263→4107）をサーバー計算結果として表示します。
+              </CardDescription>
+            </div>
+            <Badge
+              variant="secondary"
+              className={cn(
+                "rounded-lg",
+                integrationCaseQuery.data?.matches_expected ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700",
+              )}
+            >
+              {integrationCaseQuery.data?.matches_expected ? "期待値一致" : "確認要"}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {integrationCaseQuery.isPending && (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full rounded-xl" />
+              <Skeleton className="h-12 w-full rounded-xl" />
+              <Skeleton className="h-12 w-full rounded-xl" />
+            </div>
+          )}
+
+          {!integrationCaseQuery.isPending && integrationCaseQuery.isError && (
+            <Card className="rounded-2xl border-destructive/30">
+              <CardContent className="space-y-3 p-6 text-center">
+                <p className="font-medium">限界突破ケース結果の取得に失敗しました</p>
+                <Button variant="outline" className="rounded-xl" onClick={() => integrationCaseQuery.refetch()}>
+                  リトライ
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {!integrationCaseQuery.isPending && !integrationCaseQuery.isError && integrationCaseQuery.data && (
+            <>
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                <Badge variant="outline" className="rounded-lg">
+                  区分: {integrationCaseQuery.data.scenario.care_level}
+                </Badge>
+                <Badge variant="outline" className="rounded-lg">
+                  限度額: {integrationCaseQuery.data.scenario.benefit_limit_units} 単位
+                </Badge>
+                <Badge variant="outline" className="rounded-lg">
+                  利用回数: {integrationCaseQuery.data.scenario.monthly_use_count} 回
+                </Badge>
+                <Badge variant="outline" className="rounded-lg">
+                  処遇改善率: {integrationCaseQuery.data.scenario.improvement_rate}
+                </Badge>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border/70">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>項目</TableHead>
+                      <TableHead>計算値</TableHead>
+                      <TableHead>期待値</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {integrationMetrics.map((metric) => (
+                      <TableRow key={metric.key}>
+                        <TableCell className="font-medium">{metric.label}</TableCell>
+                        <TableCell>{integrationCaseQuery.data.calculated[metric.key]}</TableCell>
+                        <TableCell>{integrationCaseQuery.data.expected[metric.key]}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="rounded-xl border border-border/70 p-3">
+                <p className="text-sm font-medium">1日あたり構成</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  基本単位 {integrationCaseQuery.data.scenario.base_units} + 加算
+                  {integrationCaseQuery.data.scenario.addition_units
+                    .map((addition) => ` ${addition.name}(${addition.units})`)
+                    .join(" +")}
+                </p>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

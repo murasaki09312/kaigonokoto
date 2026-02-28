@@ -48,7 +48,7 @@ export type InvoiceGenerateResult = {
   skippedFixed: number;
 };
 
-export type InvoiceMonthlyIntegrationCase = {
+export type InvoiceMonthlyIntegrationFlow = {
   scenario: {
     care_level: string;
     benefit_limit_units: number;
@@ -76,4 +76,9 @@ export type InvoiceMonthlyIntegrationCase = {
     improvement_units: number;
   };
   matches_expected: boolean;
+};
+
+export type InvoiceMonthlyIntegrationCaseGenerateResult = {
+  invoice: Invoice;
+  flow: InvoiceMonthlyIntegrationFlow;
 };

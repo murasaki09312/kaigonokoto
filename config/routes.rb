@@ -7,7 +7,7 @@ Rails.application.routes.draw do
   post "/api/webhooks/line", to: "api/webhooks/line#create"
   post "/api/v1/reservations/generate", to: "reservations#generate"
   post "/api/v1/invoices/generate", to: "api/v1/invoices#generate"
-  get "/api/v1/invoices/monthly_integration_case", to: "api/v1/invoices#monthly_integration_case"
+  post "/api/v1/invoices/monthly_integration_case/generate", to: "api/v1/invoices#generate_monthly_integration_case"
   get "/api/v1/today_board", to: "api/v1/today_board#index"
   get "/api/v1/settings/facility", to: "api/v1/facility_settings#show"
   patch "/api/v1/settings/facility", to: "api/v1/facility_settings#update"

@@ -29,16 +29,28 @@ module Api
         }, status: :ok
       end
 
-      def monthly_integration_case
-        authorize Invoice, :index?, policy_class: InvoicePolicy
-        result = Billing::MonthlyIntegrationCase.new.call
+      def generate_monthly_integration_case
+        authorize Invoice, :generate?, policy_class: InvoicePolicy
+        month_start = parse_month_param(params.fetch(:month), allow_blank: false)
+        return if performed?
+
+        result = InvoiceMonthlyIntegrationCaseGenerationService.new(
+          tenant: current_tenant,
+          month_start: month_start,
+          actor_user: current_user
+        ).call
 
         render json: {
-          scenario: result.scenario,
-          calculated: result.calculated,
-          expected: result.expected,
-          matches_expected: result.matches_expected
-        }, status: :ok
+          invoice: invoice_response(result.invoice, line_count: result.invoice.invoice_lines.size),
+          flow: {
+            scenario: result.flow.scenario,
+            calculated: result.flow.calculated,
+            expected: result.flow.expected,
+            matches_expected: result.flow.matches_expected
+          }
+        }, status: :created
+      rescue ActiveRecord::RecordInvalid => exception
+        render_validation_error(exception.record)
       end
 
       def generate

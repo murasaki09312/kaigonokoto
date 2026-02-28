@@ -34,7 +34,7 @@ import type {
   InvoiceGenerateResult,
   InvoiceLine,
   InvoiceListResult,
-  InvoiceMonthlyIntegrationCase,
+  InvoiceMonthlyIntegrationCaseGenerateResult,
 } from "@/types/invoice";
 import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
 import type { FacilityScale, FacilitySetting } from "@/types/facility-setting";
@@ -597,10 +597,19 @@ export async function generateInvoices(payload: {
   }
 }
 
-export async function getInvoiceMonthlyIntegrationCase(): Promise<InvoiceMonthlyIntegrationCase> {
+export async function generateInvoiceMonthlyIntegrationCase(payload: {
+  month: string;
+}): Promise<InvoiceMonthlyIntegrationCaseGenerateResult> {
   try {
-    const { data } = await client.get<InvoiceMonthlyIntegrationCase>("/api/v1/invoices/monthly_integration_case");
-    return data;
+    const { data } = await client.post<{
+      invoice: Invoice;
+      flow: InvoiceMonthlyIntegrationCaseGenerateResult["flow"];
+    }>("/api/v1/invoices/monthly_integration_case/generate", payload);
+
+    return {
+      invoice: data.invoice,
+      flow: data.flow,
+    };
   } catch (error) {
     throw normalizeError(error);
   }

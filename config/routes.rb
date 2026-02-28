@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   get "/api/v1/shuttle_board", to: "api/v1/shuttle_board#index"
   get "/api/v1/invoices", to: "api/v1/invoices#index"
   get "/api/v1/invoices/:id", to: "api/v1/invoices#show"
+  get "/api/v1/invoices/:id/receipt", to: "api/v1/invoices#receipt"
   get "/api/v1/admin/users", to: "api/v1/admin/users#index"
   put "/api/v1/admin/users/:id/roles", to: "api/v1/admin/users#update_roles"
   patch "/api/v1/admin/users/:id/roles", to: "api/v1/admin/users#update_roles"

@@ -50,3 +50,17 @@ export type InvoiceGenerateResult = {
   skippedExisting: number;
   skippedFixed: number;
 };
+
+export type ReceiptItem = {
+  service_code: string;
+  name: string | null;
+  unit_score: number;
+  count: number;
+  total_units: number;
+};
+
+export type InvoiceReceiptResult = {
+  invoice: Invoice;
+  receiptItems: ReceiptItem[];
+  totalUnits: number;
+};

@@ -366,4 +366,69 @@ RSpec.describe "Invoices", type: :request do
       expect(json_body.dig("error", "code")).to eq("not_found")
     end
   end
+
+  describe "GET /api/v1/invoices/:id/receipt" do
+    it "returns aggregated receipt items sorted by service_code" do
+      extra_reservation = tenant_a.reservations.create!(
+        client: tenant_a_client_1,
+        service_date: Date.new(2026, 2, 6),
+        status: :scheduled
+      )
+      extra_attendance = tenant_a.attendances.create!(
+        tenant: tenant_a,
+        reservation: extra_reservation,
+        status: :present
+      )
+
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      lines = invoice.invoice_lines.where(attendance_id: [ a_attendance_present_1.id, extra_attendance.id ]).order(:id).to_a
+
+      lines.first.update!(
+        item_name: "入浴介助加算I",
+        metadata: lines.first.metadata.merge("service_code" => "155011", "units" => 40)
+      )
+      lines.second.update!(
+        item_name: "通所介護基本報酬",
+        metadata: lines.second.metadata.merge("service_code" => "151111", "units" => 658)
+      )
+
+      get "/api/v1/invoices/#{invoice.id}/receipt", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.fetch("receipt_items").map { |item| item.fetch("service_code") }).to eq(%w[151111 155011])
+
+      basic_item = json_body.fetch("receipt_items").first
+      expect(basic_item.fetch("name")).to eq("通所介護基本報酬")
+      expect(basic_item.fetch("unit_score")).to eq(658)
+      expect(basic_item.fetch("count")).to eq(1)
+      expect(basic_item.fetch("total_units")).to eq(658)
+
+      bathing_item = json_body.fetch("receipt_items").second
+      expect(bathing_item.fetch("name")).to eq("入浴介助加算I")
+      expect(bathing_item.fetch("unit_score")).to eq(40)
+      expect(bathing_item.fetch("count")).to eq(1)
+      expect(bathing_item.fetch("total_units")).to eq(40)
+
+      expect(json_body.dig("meta", "total_units")).to eq(698)
+    end
+
+    it "returns 404 for another tenant invoice id" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      other_tenant_user = tenant_b.users.create!(
+        name: "TenantB Manager Receipt",
+        email: "tenantb-manager-receipt-#{SecureRandom.hex(4)}@example.com",
+        password: "Password123!",
+        password_confirmation: "Password123!",
+        roles: [ manager_role ]
+      )
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(other_tenant_user)
+      tenant_b_invoice = tenant_b.invoices.first
+
+      get "/api/v1/invoices/#{tenant_b_invoice.id}/receipt", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:not_found)
+      expect(json_body.dig("error", "code")).to eq("not_found")
+    end
+  end
 end

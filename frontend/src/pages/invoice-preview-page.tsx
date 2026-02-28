@@ -115,12 +115,17 @@ export function InvoicePreviewPage() {
   return (
     <div className="space-y-4 print:space-y-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Button asChild variant="outline" className="rounded-xl">
-          <Link to="/app/invoices">
-            <ArrowLeft className="mr-2 size-4" />
-            一覧へ戻る
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link to="/app/invoices">
+              <ArrowLeft className="mr-2 size-4" />
+              一覧へ戻る
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link to={`/app/invoices/${invoice.id}/receipt`}>国保連レセプトを確認する</Link>
+          </Button>
+        </div>
         <Button className="rounded-xl" onClick={() => window.print()}>
           <Printer className="mr-2 size-4" />
           請求書を出力（印刷）

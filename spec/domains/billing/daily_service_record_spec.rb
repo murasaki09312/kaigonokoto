@@ -66,5 +66,20 @@ RSpec.describe Billing::DailyServiceRecord do
         described_class.new(base_units: Billing::CareServiceUnit.new(658), base_service_code: "ABC123", additions: [])
       end.to raise_error(ArgumentError, /base_service_code must be 6 digits/)
     end
+
+    it "keeps base_name immutable when original string is mutated" do
+      name = +"通所介護"
+      record = described_class.new(
+        base_units: Billing::CareServiceUnit.new(658),
+        base_service_code: "151111",
+        base_name: name,
+        additions: []
+      )
+
+      name << "基本"
+
+      expect(record.base_name).to eq("通所介護")
+      expect(record.base_name).to be_frozen
+    end
   end
 end

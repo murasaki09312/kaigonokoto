@@ -78,7 +78,7 @@ module Billing
       normalized = value.to_s.strip
       raise ArgumentError, "base_name is required" if normalized.blank?
 
-      normalized
+      normalized.dup.freeze
     end
   end
 end

@@ -6,11 +6,11 @@ module Billing
     UNIT_TABLE = {
       normal: {
         DURATION_H7_TO_H8 => {
-          1 => 658,
-          2 => 777,
-          3 => 861,
-          4 => 980,
-          5 => 1093
+          1 => { units: 658, service_code: "151111" },
+          2 => { units: 777, service_code: "151121" },
+          3 => { units: 861, service_code: "151131" },
+          4 => { units: 980, service_code: "151141" },
+          5 => { units: 1093, service_code: "151151" }
         }
       }
     }.freeze
@@ -28,12 +28,24 @@ module Billing
       duration = coerce_duration(duration_category)
       scale = coerce_scale(facility_scale)
 
-      unit_value = UNIT_TABLE.dig(scale, duration, level)
-      if unit_value.nil?
+      entry = UNIT_TABLE.dig(scale, duration, level)
+      if entry.nil?
         raise ArgumentError, "unsupported combination: facility_scale=#{scale}, duration_category=#{duration}, care_level=#{level}"
       end
 
-      Billing::CareServiceUnit.new(unit_value)
+      Billing::ProvidedService.new(
+        service_code: entry.fetch(:service_code),
+        units: Billing::CareServiceUnit.new(entry.fetch(:units)),
+        name: "通所介護基本報酬"
+      )
+    end
+
+    def resolve_units(care_level:, duration_category:, facility_scale:)
+      resolve(
+        care_level: care_level,
+        duration_category: duration_category,
+        facility_scale: facility_scale
+      ).units
     end
 
     private

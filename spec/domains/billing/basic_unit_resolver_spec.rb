@@ -2,25 +2,26 @@ require "rails_helper"
 
 RSpec.describe Billing::BasicUnitResolver do
   describe "#resolve" do
-    it "returns care units for normal scale x 7h_to_8h x care_level 1..5" do
+    it "returns provided services for normal scale x 7h_to_8h x care_level 1..5" do
       resolver = described_class.new
 
       expected = {
-        1 => 658,
-        2 => 777,
-        3 => 861,
-        4 => 980,
-        5 => 1093
+        1 => { units: 658, service_code: "151111" },
+        2 => { units: 777, service_code: "151121" },
+        3 => { units: 861, service_code: "151131" },
+        4 => { units: 980, service_code: "151141" },
+        5 => { units: 1093, service_code: "151151" }
       }
 
-      expected.each do |care_level, unit_value|
+      expected.each do |care_level, entry|
         result = resolver.resolve(
           care_level: care_level,
           duration_category: "7h_to_8h",
           facility_scale: "normal"
         )
 
-        expect(result).to eq(Billing::CareServiceUnit.new(unit_value))
+        expect(result.units).to eq(Billing::CareServiceUnit.new(entry.fetch(:units)))
+        expect(result.service_code).to eq(entry.fetch(:service_code))
       end
     end
 
@@ -33,7 +34,8 @@ RSpec.describe Billing::BasicUnitResolver do
         facility_scale: :normal
       )
 
-      expect(result).to eq(Billing::CareServiceUnit.new(861))
+      expect(result.units).to eq(Billing::CareServiceUnit.new(861))
+      expect(result.service_code).to eq("151131")
     end
 
     it "raises for unsupported facility scale and duration combinations" do
@@ -66,6 +68,20 @@ RSpec.describe Billing::BasicUnitResolver do
       expect do
         resolver.resolve(care_level: 1, duration_category: "", facility_scale: "normal")
       end.to raise_error(ArgumentError, /duration_category/)
+    end
+  end
+
+  describe "#resolve_units" do
+    it "returns only units for compatibility use-cases" do
+      resolver = described_class.new
+
+      result = resolver.resolve_units(
+        care_level: 1,
+        duration_category: "7h_to_8h",
+        facility_scale: "normal"
+      )
+
+      expect(result).to eq(Billing::CareServiceUnit.new(658))
     end
   end
 end

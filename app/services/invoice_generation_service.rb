@@ -1,5 +1,20 @@
 class InvoiceGenerationService
   DEFAULT_PRICE_ITEM_CODE = "day_service_basic".freeze
+  DEFAULT_IMPROVEMENT_ADDITION_RATE = BigDecimal("0.245")
+  BASIC_SERVICE_CODE = "151111".freeze
+
+  ADDITION_DEFINITIONS = {
+    bath: {
+      contract_key: "bath",
+      price_item_code: "day_service_bathing_1",
+      service_code: "155011"
+    },
+    rehabilitation: {
+      contract_key: "rehabilitation",
+      price_item_code: "day_service_individual_training_1_ro",
+      service_code: "155052"
+    }
+  }.freeze
 
   Result = Struct.new(
     :invoices,
@@ -20,7 +35,7 @@ class InvoiceGenerationService
 
   def call
     validate_mode!
-    price_item = resolve_price_item!
+    price_items = resolve_price_items!
 
     invoices = []
     generated_count = 0
@@ -62,7 +77,7 @@ class InvoiceGenerationService
           invoice.save! if invoice.new_record? || invoice.changed?
 
           invoice.invoice_lines.destroy_all if replacing
-          build_invoice_lines!(invoice: invoice, attendances: attendances, price_item: price_item)
+          build_invoice_lines!(invoice: invoice, attendances: attendances, price_items: price_items)
 
           apply_invoice_amounts!(invoice: invoice)
           invoice.save!
@@ -91,9 +106,15 @@ class InvoiceGenerationService
     raise ArgumentError, "mode is invalid"
   end
 
-  def resolve_price_item!
+  def resolve_price_items!
     active_items = @tenant.price_items.active_for(@month_start)
-    active_items.find_by(code: DEFAULT_PRICE_ITEM_CODE) || active_items.order(:id).first || missing_price_item!
+    base_item = active_items.find_by(code: DEFAULT_PRICE_ITEM_CODE) || active_items.order(:id).first || missing_price_item!
+    addition_items = active_items.where(code: addition_price_item_codes).index_by(&:code)
+
+    {
+      base: base_item,
+      additions: addition_items
+    }
   end
 
   def missing_price_item!
@@ -110,43 +131,76 @@ class InvoiceGenerationService
       .group_by { |attendance| attendance.reservation.client_id }
   end
 
-  def build_invoice_lines!(invoice:, attendances:, price_item:)
+  def build_invoice_lines!(invoice:, attendances:, price_items:)
     copayment_rate = copayment_rate_decimal_for(invoice.copayment_rate, record: invoice)
+    base_price_item = price_items.fetch(:base)
+    addition_price_items = price_items.fetch(:additions)
 
     attendances.each do |attendance|
       reservation = attendance.reservation
-      units = units_for(price_item: price_item)
+      base_units = units_for(price_item: base_price_item)
 
       invoice.invoice_lines.create!(
         tenant: @tenant,
         attendance: attendance,
-        price_item: price_item,
+        price_item: base_price_item,
         service_date: reservation.service_date,
-        item_name: price_item.name,
+        item_name: base_price_item.name,
         quantity: 1.0,
-        unit_price: units,
-        line_total: units,
+        unit_price: base_units,
+        line_total: base_units,
         metadata: {
           reservation_id: reservation.id,
           attendance_status: attendance.status,
-          units: units,
+          service_code: BASIC_SERVICE_CODE,
+          units: base_units,
           copayment_rate: copayment_rate.to_s("F")
         }
       )
+
+      addition_price_items_for(reservation: reservation, addition_price_items: addition_price_items).each do |definition, addition_price_item|
+        addition_units = units_for(price_item: addition_price_item)
+
+        invoice.invoice_lines.create!(
+          tenant: @tenant,
+          attendance: nil,
+          price_item: addition_price_item,
+          service_date: reservation.service_date,
+          item_name: addition_price_item.name,
+          quantity: 1.0,
+          unit_price: addition_units,
+          line_total: addition_units,
+          metadata: {
+            reservation_id: reservation.id,
+            source_attendance_id: attendance.id,
+            attendance_status: attendance.status,
+            service_code: definition.fetch(:service_code),
+            units: addition_units,
+            copayment_rate: copayment_rate.to_s("F")
+          }
+        )
+      end
     end
   end
 
   def apply_invoice_amounts!(invoice:)
-    insured_units = Billing::CareServiceUnit.new(invoice.invoice_lines.sum(:line_total))
+    monthly_total_units = Billing::CareServiceUnit.new(invoice.invoice_lines.sum(:line_total))
+    split = split_units_for(client: invoice.client, monthly_total_units: monthly_total_units)
+    improvement_units = improvement_units_for(invoice: invoice, insured_units: split.insured_units)
+
     result = Billing::InvoiceCalculationService.new.calculate(
-      insured_units: insured_units,
-      self_pay_units: Billing::CareServiceUnit.new(0),
+      insured_units: split.insured_units,
+      self_pay_units: split.self_pay_units,
+      improvement_addition_units: improvement_units,
       regional_multiplier: regional_multiplier,
       copayment_rate: copayment_rate_decimal_for(invoice.copayment_rate, record: invoice)
     )
 
     invoice.subtotal_amount = result.total_cost_yen.value
     invoice.total_amount = result.final_copayment_yen.value
+    invoice.insurance_claim_amount = result.insurance_claim_yen.value
+    invoice.insured_copayment_amount = result.insured_copayment_yen.value
+    invoice.excess_copayment_amount = result.excess_copayment_yen.value
   end
 
   def units_for(price_item:)
@@ -181,6 +235,79 @@ class InvoiceGenerationService
     rescue ArgumentError => exception
       raise ActiveRecord::RecordNotFound, "Regional multiplier is unavailable: #{exception.message}"
     end
+  end
+
+  def split_units_for(client:, monthly_total_units:)
+    benefit_limit_units = benefit_limit_units_for(client: client)
+    if benefit_limit_units.nil?
+      return Billing::BenefitLimitManagementService::Result.new(
+        insured_units: monthly_total_units,
+        self_pay_units: Billing::CareServiceUnit.new(0)
+      )
+    end
+
+    Billing::BenefitLimitManagementService.new.split_units(
+      monthly_total_units: monthly_total_units,
+      benefit_limit_units: benefit_limit_units
+    )
+  end
+
+  def benefit_limit_units_for(client:)
+    notes = client.notes.to_s
+    match = notes.match(/限度額\s*([0-9,]+)\s*単位/u)
+    return nil if match.nil?
+
+    Billing::CareServiceUnit.new(match[1].delete(",").to_i)
+  end
+
+  def improvement_units_for(invoice:, insured_units:)
+    return Billing::CareServiceUnit.new(0) unless invoice_has_additions?(invoice)
+
+    Billing::ImprovementAdditionCalculator.new.calculate_units(
+      insured_units: insured_units,
+      rate: DEFAULT_IMPROVEMENT_ADDITION_RATE
+    )
+  end
+
+  def invoice_has_additions?(invoice)
+    invoice.invoice_lines.any? do |line|
+      service_code = line.metadata&.fetch("service_code", nil).to_s
+      ADDITION_DEFINITIONS.values.any? { |definition| definition.fetch(:service_code) == service_code }
+    end
+  end
+
+  def addition_price_item_codes
+    ADDITION_DEFINITIONS.values.map { |definition| definition.fetch(:price_item_code) }
+  end
+
+  def addition_price_items_for(reservation:, addition_price_items:)
+    services = active_contract_services_for(client_id: reservation.client_id, service_date: reservation.service_date)
+    return [] if services.blank?
+
+    ADDITION_DEFINITIONS.each_value.each_with_object([]) do |definition, entries|
+      contract_key = definition.fetch(:contract_key)
+      next unless truthy_contract_service?(services[contract_key] || services[contract_key.to_sym])
+
+      addition_price_item = addition_price_items[definition.fetch(:price_item_code)]
+      next if addition_price_item.nil?
+
+      entries << [ definition, addition_price_item ]
+    end
+  end
+
+  def active_contract_services_for(client_id:, service_date:)
+    contract = @tenant.contracts
+      .where(client_id: client_id)
+      .where("start_on <= ?", service_date)
+      .where("end_on IS NULL OR end_on >= ?", service_date)
+      .order(start_on: :desc)
+      .first
+
+    contract&.services
+  end
+
+  def truthy_contract_service?(value)
+    value == true || value.to_s.casecmp("true").zero? || value.to_s == "1"
   end
 
   def remove_obsolete_draft_invoices!(target_client_ids)

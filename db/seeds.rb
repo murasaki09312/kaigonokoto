@@ -260,6 +260,7 @@ raise "Seed error: unable to prepare 22 service dates" if tanaka_service_dates.s
 # Idempotency: reset only the target month data for Tanaka scenario.
 billing_tenant.invoices.where(client_id: tanaka_client.id, billing_month: billing_month_start).destroy_all
 billing_tenant.reservations.where(client_id: tanaka_client.id, service_date: billing_month_start..billing_month_end).destroy_all
+billing_tenant.contracts.where(client_id: tanaka_client.id).destroy_all
 
 basic_price_item = billing_tenant.price_items.find_or_initialize_by(code: "day_service_basic")
 basic_price_item.assign_attributes(
@@ -294,6 +295,23 @@ training_price_item.assign_attributes(
 )
 training_price_item.save!
 
+billing_tenant.contracts.create!(
+  tenant: billing_tenant,
+  client: tanaka_client,
+  start_on: billing_month_start,
+  end_on: nil,
+  weekdays: [ 1, 2, 3, 4, 5, 6 ],
+  services: {
+    "meal" => true,
+    "bath" => true,
+    "rehabilitation" => true,
+    "recreation" => false
+  },
+  service_note: "基本報酬 + 入浴介助加算I + 個別機能訓練加算Iロ（デモ）",
+  shuttle_required: true,
+  shuttle_note: "送迎あり"
+)
+
 tanaka_service_dates.each do |service_date|
   reservation = billing_tenant.reservations.create!(
     client: tanaka_client,
@@ -324,86 +342,8 @@ tanaka_invoice = billing_tenant.invoices.find_by!(
   billing_month: billing_month_start
 )
 
-basic_lines = tanaka_invoice.invoice_lines.includes(:attendance).order(:service_date, :id).to_a
-basic_lines.each do |line|
-  line.update!(
-    item_name: basic_price_item.name,
-    unit_price: 658,
-    line_total: 658,
-    metadata: line.metadata.merge(
-      "service_code" => "151111",
-      "units" => 658,
-      "seed_case" => "tanaka_2026_02"
-    )
-  )
-end
-
-monthly_attendances = billing_tenant.attendances
-  .joins(:reservation)
-  .where(
-    tenant_id: billing_tenant.id,
-    status: :present,
-    reservations: {
-      client_id: tanaka_client.id,
-      service_date: billing_month_start..billing_month_end
-    }
-  )
-  .includes(:reservation)
-  .order("reservations.service_date ASC, attendances.id ASC")
-
-monthly_attendances.each do |attendance|
-  service_date = attendance.reservation.service_date
-
-  tanaka_invoice.invoice_lines.create!(
-    tenant: billing_tenant,
-    attendance: nil,
-    price_item: bathing_price_item,
-    service_date: service_date,
-    item_name: bathing_price_item.name,
-    quantity: 1.0,
-    unit_price: 40,
-    line_total: 40,
-    metadata: {
-      "service_code" => "155011",
-      "units" => 40,
-      "seed_case" => "tanaka_2026_02",
-      "source_attendance_id" => attendance.id
-    }
-  )
-
-  tanaka_invoice.invoice_lines.create!(
-    tenant: billing_tenant,
-    attendance: nil,
-    price_item: training_price_item,
-    service_date: service_date,
-    item_name: training_price_item.name,
-    quantity: 1.0,
-    unit_price: 76,
-    line_total: 76,
-    metadata: {
-      "service_code" => "155052",
-      "units" => 76,
-      "seed_case" => "tanaka_2026_02",
-      "source_attendance_id" => attendance.id
-    }
-  )
-end
-
 monthly_total_units = Billing::CareServiceUnit.new(tanaka_invoice.invoice_lines.sum(:line_total))
 regional_multiplier = Billing::AreaGradeResolver.new.resolve(city_name: billing_tenant.city_name).to_regional_multiplier
-
-base_calculation = Billing::InvoiceCalculationService.new.calculate(
-  insured_units: monthly_total_units,
-  self_pay_units: Billing::CareServiceUnit.new(0),
-  regional_multiplier: regional_multiplier,
-  copayment_rate: "0.1"
-)
-
-tanaka_invoice.update!(
-  copayment_rate: tanaka_client.copayment_rate,
-  subtotal_amount: base_calculation.total_cost_yen.value,
-  total_amount: base_calculation.final_copayment_yen.value
-)
 
 # Additional domain-level verification values (limit excess + improvement addition)
 limit_split = Billing::BenefitLimitManagementService.new.split_units(
@@ -425,6 +365,6 @@ complex_calculation = Billing::InvoiceCalculationService.new.calculate(
 puts "[seed] Tanaka case ready (2026-02): tenant=#{billing_tenant.slug}, client=#{tanaka_client.name}"
 puts "[seed]  service days=#{tanaka_service_dates.size}, invoice_id=#{tanaka_invoice.id}"
 puts "[seed]  monthly_total_units=#{monthly_total_units.value} (expected 17028)"
-puts "[seed]  invoice subtotal=#{tanaka_invoice.subtotal_amount}, copayment=#{tanaka_invoice.total_amount}"
+puts "[seed]  invoice subtotal=#{tanaka_invoice.subtotal_amount}, copayment=#{tanaka_invoice.total_amount}, excess=#{tanaka_invoice.excess_copayment_amount}"
 puts "[seed]  domain split insured=#{limit_split.insured_units.value}, self_pay=#{limit_split.self_pay_units.value}, improvement=#{improvement_units.value}"
 puts "[seed]  domain final copayment(with limit/improvement)=#{complex_calculation.final_copayment_yen.value}"

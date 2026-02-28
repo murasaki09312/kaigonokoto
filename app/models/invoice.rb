@@ -15,6 +15,9 @@ class Invoice < ApplicationRecord
   validates :copayment_rate, inclusion: { in: [ 1, 2, 3 ] }
   validates :subtotal_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :total_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :insurance_claim_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :insured_copayment_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :excess_copayment_amount, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :client_id, uniqueness: { scope: [ :tenant_id, :billing_month ] }
   validate :billing_month_must_be_month_start
   validate :client_belongs_to_tenant
@@ -27,6 +30,9 @@ class Invoice < ApplicationRecord
     sum = invoice_lines.sum(:line_total)
     self.subtotal_amount = sum
     self.total_amount = sum
+    self.insurance_claim_amount = 0
+    self.insured_copayment_amount = sum
+    self.excess_copayment_amount = 0
   end
 
   private

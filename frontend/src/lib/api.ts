@@ -34,7 +34,6 @@ import type {
   InvoiceGenerateResult,
   InvoiceLine,
   InvoiceListResult,
-  InvoiceMonthlyIntegrationCase,
 } from "@/types/invoice";
 import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
 import type { FacilityScale, FacilitySetting } from "@/types/facility-setting";
@@ -592,15 +591,6 @@ export async function generateInvoices(payload: {
       skippedExisting: data.meta.skipped_existing,
       skippedFixed: data.meta.skipped_fixed,
     };
-  } catch (error) {
-    throw normalizeError(error);
-  }
-}
-
-export async function getInvoiceMonthlyIntegrationCase(): Promise<InvoiceMonthlyIntegrationCase> {
-  try {
-    const { data } = await client.get<InvoiceMonthlyIntegrationCase>("/api/v1/invoices/monthly_integration_case");
-    return data;
   } catch (error) {
     throw normalizeError(error);
   }

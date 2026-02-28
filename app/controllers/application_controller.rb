@@ -1,6 +1,8 @@
 class ApplicationController < ActionController::API
   include Pundit::Authorization
 
+  ALLOWED_COPAYMENT_RATE_STRINGS = %w[0.1 0.2 0.3].freeze
+
   before_action :authenticate_request
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
@@ -239,7 +241,10 @@ class ApplicationController < ActionController::API
 
     invoice.invoice_lines.each do |line|
       rate = line.metadata&.fetch("copayment_rate", nil)
-      return rate if rate.present?
+      next if rate.blank?
+
+      normalized_rate = rate.to_s
+      return normalized_rate if ALLOWED_COPAYMENT_RATE_STRINGS.include?(normalized_rate)
     end
 
     nil

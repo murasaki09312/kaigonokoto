@@ -278,6 +278,21 @@ RSpec.describe "Invoices", type: :request do
       expect(json_body.dig("invoice", "copayment_amount")).to eq(240)
     end
 
+    it "falls back to default copayment rate when metadata has invalid copayment_rate" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+      line.update!(metadata: line.metadata.merge("copayment_rate" => "abc"))
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
+    end
+
     it "returns 404 for another tenant invoice id" do
       post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
       other_tenant_user = tenant_b.users.create!(

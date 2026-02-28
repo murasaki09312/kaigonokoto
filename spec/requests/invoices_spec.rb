@@ -149,6 +149,23 @@ RSpec.describe "Invoices", type: :request do
         tenant_a_client_2.id
       )
     end
+
+    it "reflects copayment_rate from invoice metadata in index response" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+      line.update!(metadata: line.metadata.merge("copayment_rate" => "0.2"))
+
+      get "/api/v1/invoices", params: { month: month }, headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      target_invoice = json_body.fetch("invoices").find { |item| item.fetch("id") == invoice.id }
+      expect(target_invoice).to be_present
+      expect(target_invoice.fetch("copayment_rate")).to eq(0.2)
+      expect(target_invoice.fetch("insurance_claim_amount")).to eq(960)
+      expect(target_invoice.fetch("insured_copayment_amount")).to eq(240)
+      expect(target_invoice.fetch("copayment_amount")).to eq(240)
+    end
   end
 
   describe "POST /api/v1/invoices/generate" do
@@ -254,8 +271,43 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("invoice", "id")).to eq(invoice.id)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "excess_copayment_amount")).to eq(0)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
       expect(json_body.fetch("invoice_lines").size).to eq(1)
       expect(json_body.fetch("invoice_lines").first.fetch("attendance_id")).to eq(a_attendance_present_1.id)
+    end
+
+    it "uses copayment rate from invoice line metadata when present" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+      line.update!(metadata: line.metadata.merge("copayment_rate" => "0.2"))
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.2)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(960)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(240)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(240)
+    end
+
+    it "falls back to default copayment rate when metadata has invalid copayment_rate" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+      line.update!(metadata: line.metadata.merge("copayment_rate" => "abc"))
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
     end
 
     it "returns 404 for another tenant invoice id" do

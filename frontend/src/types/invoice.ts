@@ -9,6 +9,11 @@ export type Invoice = {
   status: InvoiceStatus;
   subtotal_amount: number;
   total_amount: number;
+  copayment_rate: number;
+  insurance_claim_amount: number;
+  insured_copayment_amount: number;
+  excess_copayment_amount: number;
+  copayment_amount: number;
   line_count: number | null;
   generated_at: string | null;
   generated_by_user_id: number | null;

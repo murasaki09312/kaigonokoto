@@ -1,6 +1,8 @@
 class ApplicationController < ActionController::API
   include Pundit::Authorization
 
+  ALLOWED_COPAYMENT_RATE_STRINGS = %w[0.1 0.2 0.3].freeze
+
   before_action :authenticate_request
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
@@ -193,6 +195,8 @@ class ApplicationController < ActionController::API
   end
 
   def invoice_response(invoice, line_count: nil)
+    breakdown = invoice_breakdown_response(invoice)
+
     {
       id: invoice.id,
       tenant_id: invoice.tenant_id,
@@ -202,12 +206,48 @@ class ApplicationController < ActionController::API
       status: invoice.status,
       subtotal_amount: invoice.subtotal_amount,
       total_amount: invoice.total_amount,
+      copayment_rate: breakdown[:copayment_rate],
+      insurance_claim_amount: breakdown[:insurance_claim_amount],
+      insured_copayment_amount: breakdown[:insured_copayment_amount],
+      excess_copayment_amount: breakdown[:excess_copayment_amount],
+      copayment_amount: breakdown[:copayment_amount],
       line_count: line_count,
       generated_at: invoice.generated_at,
       generated_by_user_id: invoice.generated_by_user_id,
       created_at: invoice.created_at,
       updated_at: invoice.updated_at
     }
+  end
+
+  def invoice_breakdown_response(invoice)
+    total_cost_yen = Billing::YenAmount.new(invoice.total_amount)
+    breakdown = Billing::CopaymentBreakdownService.new.calculate(
+      total_cost_yen: total_cost_yen,
+      excess_copayment_yen: Billing::YenAmount.new(0),
+      copayment_rate: extract_invoice_copayment_rate(invoice)
+    )
+
+    {
+      copayment_rate: breakdown.copayment_rate.to_f,
+      insurance_claim_amount: breakdown.insurance_claim_yen.value,
+      insured_copayment_amount: breakdown.insured_copayment_yen.value,
+      excess_copayment_amount: breakdown.excess_copayment_yen.value,
+      copayment_amount: breakdown.final_copayment_yen.value
+    }
+  end
+
+  def extract_invoice_copayment_rate(invoice)
+    return nil unless invoice.association(:invoice_lines).loaded?
+
+    invoice.invoice_lines.each do |line|
+      rate = line.metadata&.fetch("copayment_rate", nil)
+      next if rate.blank?
+
+      normalized_rate = rate.to_s
+      return normalized_rate if ALLOWED_COPAYMENT_RATE_STRINGS.include?(normalized_rate)
+    end
+
+    nil
   end
 
   def invoice_line_response(invoice_line)

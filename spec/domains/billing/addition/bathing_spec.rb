@@ -14,4 +14,10 @@ RSpec.describe Billing::Addition::Bathing do
       expect(described_class.new.code).to eq(:bathing)
     end
   end
+
+  describe "#service_code" do
+    it "returns valid service code for bathing addition I" do
+      expect(described_class.new.service_code).to eq("155011")
+    end
+  end
 end

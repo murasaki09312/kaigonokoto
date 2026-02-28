@@ -4,6 +4,7 @@ RSpec.describe "Billing monthly integration" do
   it "connects daily record, monthly limit split, and improvement addition flow" do
     daily_record = Billing::DailyServiceRecord.new(
       base_units: Billing::CareServiceUnit.new(658),
+      base_service_code: "151111",
       additions: [
         Billing::Addition::Bathing.new,
         Billing::Addition::IndividualFunctionalTraining.new

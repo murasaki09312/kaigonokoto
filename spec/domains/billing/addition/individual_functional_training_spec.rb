@@ -14,4 +14,10 @@ RSpec.describe Billing::Addition::IndividualFunctionalTraining do
       expect(described_class.new.code).to eq(:individual_functional_training)
     end
   end
+
+  describe "#service_code" do
+    it "returns valid service code for individual functional training addition I-ro" do
+      expect(described_class.new.service_code).to eq("155052")
+    end
+  end
 end

@@ -76,6 +76,46 @@ RSpec.describe Billing::InvoiceCalculationService do
       end.to raise_error(ArgumentError, "insured_units must be Billing::CareServiceUnit")
     end
 
+    it "raises an error when self_pay_units is invalid" do
+      service = described_class.new
+
+      expect do
+        service.calculate(
+          insured_units: Billing::CareServiceUnit.new(15_000),
+          self_pay_units: 0,
+          regional_multiplier: Billing::RegionalMultiplier.new("10.90"),
+          copayment_rate: "0.1"
+        )
+      end.to raise_error(ArgumentError, "self_pay_units must be Billing::CareServiceUnit")
+    end
+
+    it "raises an error when improvement_addition_units is invalid" do
+      service = described_class.new
+
+      expect do
+        service.calculate(
+          insured_units: Billing::CareServiceUnit.new(15_000),
+          self_pay_units: Billing::CareServiceUnit.new(0),
+          improvement_addition_units: 100,
+          regional_multiplier: Billing::RegionalMultiplier.new("10.90"),
+          copayment_rate: "0.1"
+        )
+      end.to raise_error(ArgumentError, "improvement_addition_units must be Billing::CareServiceUnit")
+    end
+
+    it "raises an error when copayment rate is not numeric" do
+      service = described_class.new
+
+      expect do
+        service.calculate(
+          insured_units: Billing::CareServiceUnit.new(15_000),
+          self_pay_units: Billing::CareServiceUnit.new(0),
+          regional_multiplier: Billing::RegionalMultiplier.new("10.90"),
+          copayment_rate: "abc"
+        )
+      end.to raise_error(ArgumentError, "copayment_rate must be one of 0.1, 0.2, 0.3")
+    end
+
     it "raises an error when regional_multiplier is invalid" do
       service = described_class.new
 

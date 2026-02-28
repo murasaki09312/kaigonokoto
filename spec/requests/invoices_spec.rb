@@ -151,42 +151,29 @@ RSpec.describe "Invoices", type: :request do
     end
   end
 
-  describe "POST /api/v1/invoices/monthly_integration_case/generate" do
+  describe "GET /api/v1/invoices/monthly_integration_case" do
     it "returns 401 without token" do
-      post "/api/v1/invoices/monthly_integration_case/generate", params: { month: month }, as: :json
+      get "/api/v1/invoices/monthly_integration_case"
 
       expect(response).to have_http_status(:unauthorized)
       expect(json_body.dig("error", "code")).to eq("unauthorized")
     end
 
-    it "forbids reader without invoices:manage" do
-      post "/api/v1/invoices/monthly_integration_case/generate",
-        params: { month: month }, as: :json, headers: auth_headers_for(reader_user)
+    it "returns calculated flow result for reader" do
+      get "/api/v1/invoices/monthly_integration_case", headers: auth_headers_for(reader_user)
 
-      expect(response).to have_http_status(:forbidden)
-      expect(json_body.dig("error", "code")).to eq("forbidden")
-    end
-
-    it "creates or updates one integration-case invoice and returns flow" do
-      post "/api/v1/invoices/monthly_integration_case/generate",
-        params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
-
-      expect(response).to have_http_status(:created)
-      expect(json_body.dig("invoice", "client_name")).to eq("結合テスト利用者（限界突破）")
-      expect(json_body.dig("invoice", "billing_month")).to eq("2026-02")
-      expect(json_body.dig("invoice", "total_amount")).to eq(17_028)
-
-      expect(json_body.dig("flow", "scenario", "care_level")).to eq("要介護1")
-      expect(json_body.dig("flow", "scenario", "monthly_use_count")).to eq(22)
-      expect(json_body.dig("flow", "scenario", "benefit_limit_units")).to eq(16_765)
-      expect(json_body.dig("flow", "scenario", "base_units")).to eq(658)
-      expect(json_body.dig("flow", "scenario", "improvement_rate")).to eq("0.245")
-      expect(json_body.dig("flow", "scenario", "addition_units")).to contain_exactly(
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("scenario", "care_level")).to eq("要介護1")
+      expect(json_body.dig("scenario", "monthly_use_count")).to eq(22)
+      expect(json_body.dig("scenario", "benefit_limit_units")).to eq(16_765)
+      expect(json_body.dig("scenario", "base_units")).to eq(658)
+      expect(json_body.dig("scenario", "improvement_rate")).to eq("0.245")
+      expect(json_body.dig("scenario", "addition_units")).to contain_exactly(
         { "code" => "bathing", "name" => "入浴介助加算I", "units" => 40 },
         { "code" => "individual_functional_training", "name" => "個別機能訓練加算Iロ", "units" => 76 }
       )
 
-      expect(json_body.dig("flow", "calculated")).to eq(
+      expect(json_body.fetch("calculated")).to eq(
         {
           "daily_total_units" => 774,
           "monthly_total_units" => 17_028,
@@ -195,7 +182,7 @@ RSpec.describe "Invoices", type: :request do
           "improvement_units" => 4_107
         }
       )
-      expect(json_body.dig("flow", "expected")).to eq(
+      expect(json_body.fetch("expected")).to eq(
         {
           "daily_total_units" => 774,
           "monthly_total_units" => 17_028,
@@ -204,14 +191,7 @@ RSpec.describe "Invoices", type: :request do
           "improvement_units" => 4_107
         }
       )
-      expect(json_body.dig("flow", "matches_expected")).to eq(true)
-
-      invoice = tenant_a.invoices.joins(:client).find_by!(
-        billing_month: month_start,
-        clients: { name: "結合テスト利用者（限界突破）" }
-      )
-      expect(invoice.total_amount).to eq(17_028)
-      expect(invoice.invoice_lines.count).to eq(22)
+      expect(json_body.fetch("matches_expected")).to eq(true)
     end
   end
 

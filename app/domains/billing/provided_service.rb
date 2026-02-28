@@ -5,7 +5,7 @@ module Billing
     def initialize(service_code:, units:, name: nil)
       @service_code = coerce_service_code(service_code)
       @units = coerce_units(units)
-      @name = name
+      @name = coerce_name(name)
       freeze
     end
 
@@ -26,7 +26,9 @@ module Billing
 
     def coerce_service_code(value)
       normalized = value.to_s
-      return normalized if normalized.match?(/\A\d{6}\z/)
+      if normalized.match?(/\A\d{6}\z/)
+        return normalized.dup.freeze
+      end
 
       raise ArgumentError, "service_code must be 6 digits"
     end
@@ -35,6 +37,12 @@ module Billing
       return value if value.is_a?(Billing::CareServiceUnit)
 
       raise ArgumentError, "units must be Billing::CareServiceUnit"
+    end
+
+    def coerce_name(value)
+      return nil if value.nil?
+
+      value.to_s.dup.freeze
     end
   end
 end

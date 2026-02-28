@@ -204,9 +204,14 @@ export function InvoicesPage() {
                       <TableCell>{formatCurrency(invoice.total_amount)}</TableCell>
                       <TableCell>{formatGeneratedAt(invoice.generated_at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm" className="rounded-lg">
-                          <Link to={`/app/invoices/${invoice.id}`}>プレビュー</Link>
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button asChild variant="outline" size="sm" className="rounded-lg">
+                            <Link to={`/app/invoices/${invoice.id}`}>請求書</Link>
+                          </Button>
+                          <Button asChild variant="outline" size="sm" className="rounded-lg">
+                            <Link to={`/app/invoices/${invoice.id}/receipt`}>レセプト</Link>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

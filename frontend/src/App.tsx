@@ -15,6 +15,7 @@ import { ShuttleBoardPage } from "@/pages/shuttle-board-page";
 import { CareRecordsPage } from "@/pages/care-records-page";
 import { InvoicesPage } from "@/pages/invoices-page";
 import { InvoicePreviewPage } from "@/pages/invoice-preview-page";
+import { ReceiptPreviewPage } from "@/pages/receipt-preview-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
             <Route path="records" element={<CareRecordsPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="invoices/:id" element={<InvoicePreviewPage />} />
+            <Route path="invoices/:id/receipt" element={<ReceiptPreviewPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="settings/users" element={<AdminUserRoleManagementPage />} />
             <Route path="settings/facility" element={<FacilitySettingsPage />} />

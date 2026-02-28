@@ -32,8 +32,10 @@ import type {
 import type {
   Invoice,
   InvoiceGenerateResult,
+  InvoiceReceiptResult,
   InvoiceLine,
   InvoiceListResult,
+  ReceiptItem,
 } from "@/types/invoice";
 import type { DashboardHandoffResponse } from "@/types/dashboard-handoff";
 import type { FacilityScale, FacilitySetting } from "@/types/facility-setting";
@@ -561,6 +563,24 @@ export async function getInvoice(id: number | string): Promise<{ invoice: Invoic
     return {
       invoice: data.invoice,
       invoiceLines: data.invoice_lines,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getInvoiceReceipt(id: number | string): Promise<InvoiceReceiptResult> {
+  try {
+    const { data } = await client.get<{
+      invoice: Invoice;
+      receipt_items: ReceiptItem[];
+      meta: { total_units: number };
+    }>(`/api/v1/invoices/${id}/receipt`);
+
+    return {
+      invoice: data.invoice,
+      receiptItems: data.receipt_items,
+      totalUnits: data.meta.total_units,
     };
   } catch (error) {
     throw normalizeError(error);

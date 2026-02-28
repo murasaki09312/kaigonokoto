@@ -1,10 +1,13 @@
 module Billing
   class DailyServiceRecord
-    attr_reader :base_units, :base_service_code, :additions
+    DEFAULT_BASE_NAME = "通所介護基本報酬".freeze
 
-    def initialize(base_units:, additions: [], base_service_code:)
+    attr_reader :base_units, :base_service_code, :base_name, :additions
+
+    def initialize(base_units:, additions: [], base_service_code:, base_name: DEFAULT_BASE_NAME)
       @base_units = coerce_base_units(base_units)
       @base_service_code = coerce_service_code(base_service_code, field_name: "base_service_code")
+      @base_name = coerce_base_name(base_name)
       @additions = coerce_additions(additions)
       freeze
     end
@@ -19,7 +22,7 @@ module Billing
       basic_entry = Billing::ProvidedService.new(
         service_code: base_service_code,
         units: base_units,
-        name: "通所介護基本報酬"
+        name: base_name
       )
 
       addition_entries = additions.map do |addition|
@@ -69,6 +72,13 @@ module Billing
       return normalized if normalized.match?(/\A\d{6}\z/)
 
       raise ArgumentError, "#{field_name} must be 6 digits"
+    end
+
+    def coerce_base_name(value)
+      normalized = value.to_s.strip
+      raise ArgumentError, "base_name is required" if normalized.blank?
+
+      normalized
     end
   end
 end

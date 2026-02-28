@@ -218,18 +218,31 @@ class ApplicationController < ActionController::API
   end
 
   def invoice_breakdown_response(invoice)
-    # MVP: client-specific burden ratio is not modeled yet, so apply 10% copayment by default.
-    copayment_rate = 0.1
-    insurance_claim_amount = (invoice.total_amount * 0.9).floor
-    insured_copayment_amount = invoice.total_amount - insurance_claim_amount
+    total_cost_yen = Billing::YenAmount.new(invoice.total_amount)
+    breakdown = Billing::CopaymentBreakdownService.new.calculate(
+      total_cost_yen: total_cost_yen,
+      excess_copayment_yen: Billing::YenAmount.new(0),
+      copayment_rate: extract_invoice_copayment_rate(invoice)
+    )
 
     {
-      copayment_rate: copayment_rate,
-      insurance_claim_amount: insurance_claim_amount,
-      insured_copayment_amount: insured_copayment_amount,
-      excess_copayment_amount: 0,
-      copayment_amount: insured_copayment_amount
+      copayment_rate: breakdown.copayment_rate.to_f,
+      insurance_claim_amount: breakdown.insurance_claim_yen.value,
+      insured_copayment_amount: breakdown.insured_copayment_yen.value,
+      excess_copayment_amount: breakdown.excess_copayment_yen.value,
+      copayment_amount: breakdown.final_copayment_yen.value
     }
+  end
+
+  def extract_invoice_copayment_rate(invoice)
+    return nil unless invoice.association(:invoice_lines).loaded?
+
+    invoice.invoice_lines.each do |line|
+      rate = line.metadata&.fetch("copayment_rate", nil)
+      return rate if rate.present?
+    end
+
+    nil
   end
 
   def invoice_line_response(invoice_line)

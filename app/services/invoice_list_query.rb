@@ -14,7 +14,7 @@ class InvoiceListQuery
   def call
     invoices = @tenant.invoices
       .for_month(@month_start)
-      .includes(:client)
+      .includes(:client, :invoice_lines)
       .in_display_order
 
     line_counts = @tenant.invoice_lines

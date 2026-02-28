@@ -162,9 +162,9 @@ RSpec.describe "Invoices", type: :request do
       target_invoice = json_body.fetch("invoices").find { |item| item.fetch("id") == invoice.id }
       expect(target_invoice).to be_present
       expect(target_invoice.fetch("copayment_rate")).to eq(0.2)
-      expect(target_invoice.fetch("insurance_claim_amount")).to eq(960)
-      expect(target_invoice.fetch("insured_copayment_amount")).to eq(240)
-      expect(target_invoice.fetch("copayment_amount")).to eq(240)
+      expect(target_invoice.fetch("insurance_claim_amount")).to eq(10_464)
+      expect(target_invoice.fetch("insured_copayment_amount")).to eq(2_616)
+      expect(target_invoice.fetch("copayment_amount")).to eq(2_616)
     end
   end
 
@@ -187,9 +187,26 @@ RSpec.describe "Invoices", type: :request do
 
       invoices = tenant_a.invoices.where(billing_month: month_start)
       expect(invoices.count).to eq(2)
-      expect(invoices.sum(:total_amount)).to eq(2400)
+      expect(invoices.sum(:total_amount)).to eq(2616)
       expect(tenant_a.invoice_lines.where(attendance_id: a_attendance_absent.id)).to be_empty
       expect(tenant_a.invoice_lines.where(attendance_id: a_attendance_other_month.id)).to be_empty
+    end
+
+    it "applies client copayment rates (2 and 3) to invoice totals" do
+      tenant_a_client_1.update!(copayment_rate: 2)
+      tenant_a_client_2.update!(copayment_rate: 3)
+
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+
+      expect(response).to have_http_status(:created)
+
+      invoice_1 = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      invoice_2 = tenant_a.invoices.find_by!(client_id: tenant_a_client_2.id, billing_month: month_start)
+
+      expect(invoice_1.subtotal_amount).to eq(13_080)
+      expect(invoice_1.total_amount).to eq(2_616)
+      expect(invoice_2.subtotal_amount).to eq(13_080)
+      expect(invoice_2.total_amount).to eq(3_924)
     end
 
     it "is idempotent with skip mode" do
@@ -214,7 +231,7 @@ RSpec.describe "Invoices", type: :request do
       expect(response).to have_http_status(:created)
       expect(json_body.dig("meta", "generated")).to eq(2)
       expect(json_body.dig("meta", "replaced")).to eq(2)
-      expect(tenant_a.invoices.where(billing_month: month_start).sum(:total_amount)).to eq(3000)
+      expect(tenant_a.invoices.where(billing_month: month_start).sum(:total_amount)).to eq(3270)
     end
 
     it "removes stale draft invoices when client has no present attendance after replace" do
@@ -272,12 +289,15 @@ RSpec.describe "Invoices", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("invoice", "id")).to eq(invoice.id)
       expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
-      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
-      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(11_772)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(1_308)
       expect(json_body.dig("invoice", "excess_copayment_amount")).to eq(0)
-      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(1_308)
       expect(json_body.fetch("invoice_lines").size).to eq(1)
       expect(json_body.fetch("invoice_lines").first.fetch("attendance_id")).to eq(a_attendance_present_1.id)
+      expect(json_body.fetch("invoice_lines").first.fetch("units")).to eq(1200)
+      expect(json_body.fetch("invoice_lines").first).not_to have_key("unit_price")
+      expect(json_body.fetch("invoice_lines").first).not_to have_key("line_total")
     end
 
     it "uses copayment rate from invoice line metadata when present" do
@@ -290,9 +310,9 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("invoice", "copayment_rate")).to eq(0.2)
-      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(960)
-      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(240)
-      expect(json_body.dig("invoice", "copayment_amount")).to eq(240)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(10_464)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(2_616)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(2_616)
     end
 
     it "falls back to default copayment rate when metadata has invalid copayment_rate" do
@@ -305,9 +325,27 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
-      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(1080)
-      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(120)
-      expect(json_body.dig("invoice", "copayment_amount")).to eq(120)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(11_772)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(1_308)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(1_308)
+    end
+
+    it "keeps historical invoice breakdown immutable after client copayment changes" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+      line = invoice.invoice_lines.find_by!(attendance_id: a_attendance_present_1.id)
+
+      line.update!(metadata: line.metadata.except("copayment_rate"))
+      tenant_a_client_1.update!(copayment_rate: 2)
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(invoice.reload.copayment_rate).to eq(1)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(11_772)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(1_308)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(1_308)
     end
 
     it "returns 404 for another tenant invoice id" do

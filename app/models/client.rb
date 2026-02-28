@@ -13,6 +13,7 @@ class Client < ApplicationRecord
   PHONE_FORMAT = /\A[0-9+\-() ]+\z/
 
   validates :name, presence: true
+  validates :copayment_rate, inclusion: { in: [ 1, 2, 3 ] }
   validates :phone, format: { with: PHONE_FORMAT }, allow_blank: true
   validates :emergency_contact_phone, format: { with: PHONE_FORMAT }, allow_blank: true
 end

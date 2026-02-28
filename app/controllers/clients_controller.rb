@@ -63,7 +63,8 @@ class ClientsController < ApplicationController
       :emergency_contact_name,
       :emergency_contact_phone,
       :notes,
-      :status
+      :status,
+      :copayment_rate
     )
   end
 

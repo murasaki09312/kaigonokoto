@@ -211,3 +211,161 @@ if today_reservation
   )
   dropoff_leg.save!
 end
+
+# -----------------------------------------------------------------------------
+# Realistic billing demo seed (Tanaka case, February 2026)
+# -----------------------------------------------------------------------------
+billing_tenant = Tenant.find_or_create_by!(slug: "demo-billing-meguro-202602") do |record|
+  record.name = "Billing Demo Meguro"
+  record.city_name = "目黒区"
+  record.facility_scale = :normal
+end
+
+if billing_tenant.name != "Billing Demo Meguro" ||
+    billing_tenant.city_name != "目黒区" ||
+    billing_tenant.facility_scale != "normal"
+  billing_tenant.update!(
+    name: "Billing Demo Meguro",
+    city_name: "目黒区",
+    facility_scale: :normal
+  )
+end
+
+billing_admin = billing_tenant.users.find_or_initialize_by(email: "billing-admin@example.com")
+billing_admin.assign_attributes(
+  name: "Billing Admin",
+  password: "Password123!",
+  password_confirmation: "Password123!"
+)
+billing_admin.save!
+billing_admin.roles = [ admin_role ]
+
+tanaka_client = billing_tenant.clients.find_or_initialize_by(name: "田中 一郎")
+tanaka_client.assign_attributes(
+  kana: "タナカ イチロウ",
+  gender: :male,
+  phone: "090-3333-3333",
+  status: :active,
+  copayment_rate: 1,
+  benefit_limit_units: 16_765,
+  notes: "要介護1 / 限度額16,765単位 / 1割負担（デモケース）"
+)
+tanaka_client.save!
+
+billing_month_start = Date.new(2026, 2, 1)
+billing_month_end = billing_month_start.end_of_month
+tanaka_service_dates = (billing_month_start..billing_month_end).reject(&:sunday?).first(22)
+
+raise "Seed error: unable to prepare 22 service dates" if tanaka_service_dates.size < 22
+
+# Idempotency: reset only the target month data for Tanaka scenario.
+billing_tenant.invoices.where(client_id: tanaka_client.id, billing_month: billing_month_start).destroy_all
+billing_tenant.reservations.where(client_id: tanaka_client.id, service_date: billing_month_start..billing_month_end).destroy_all
+billing_tenant.contracts.where(client_id: tanaka_client.id).destroy_all
+
+basic_price_item = billing_tenant.price_items.find_or_initialize_by(code: "day_service_basic")
+basic_price_item.assign_attributes(
+  name: "通所介護（7時間以上8時間未満）",
+  unit_price: 658,
+  billing_unit: :per_use,
+  active: true,
+  valid_from: Date.new(2026, 1, 1),
+  valid_to: nil
+)
+basic_price_item.save!
+
+bathing_price_item = billing_tenant.price_items.find_or_initialize_by(code: "day_service_bathing_1")
+bathing_price_item.assign_attributes(
+  name: "入浴介助加算I",
+  unit_price: 40,
+  billing_unit: :per_use,
+  active: true,
+  valid_from: Date.new(2026, 1, 1),
+  valid_to: nil
+)
+bathing_price_item.save!
+
+training_price_item = billing_tenant.price_items.find_or_initialize_by(code: "day_service_individual_training_1_ro")
+training_price_item.assign_attributes(
+  name: "個別機能訓練加算Iロ",
+  unit_price: 76,
+  billing_unit: :per_use,
+  active: true,
+  valid_from: Date.new(2026, 1, 1),
+  valid_to: nil
+)
+training_price_item.save!
+
+billing_tenant.contracts.create!(
+  tenant: billing_tenant,
+  client: tanaka_client,
+  start_on: billing_month_start,
+  end_on: nil,
+  weekdays: [ 1, 2, 3, 4, 5, 6 ],
+  services: {
+    "meal" => true,
+    "bath" => true,
+    "rehabilitation" => true,
+    "recreation" => false
+  },
+  service_note: "基本報酬 + 入浴介助加算I + 個別機能訓練加算Iロ（デモ）",
+  shuttle_required: true,
+  shuttle_note: "送迎あり"
+)
+
+tanaka_service_dates.each do |service_date|
+  reservation = billing_tenant.reservations.create!(
+    client: tanaka_client,
+    service_date: service_date,
+    start_time: "08:00",
+    end_time: "15:00",
+    status: :scheduled,
+    notes: "基本報酬 + 入浴介助加算I + 個別機能訓練加算Iロ（送迎あり）"
+  )
+
+  billing_tenant.attendances.create!(
+    tenant: billing_tenant,
+    reservation: reservation,
+    status: :present,
+    note: "デモ請求実績"
+  )
+end
+
+InvoiceGenerationService.new(
+  tenant: billing_tenant,
+  month_start: billing_month_start,
+  actor_user: billing_admin,
+  mode: "replace"
+).call
+
+tanaka_invoice = billing_tenant.invoices.find_by!(
+  client_id: tanaka_client.id,
+  billing_month: billing_month_start
+)
+
+monthly_total_units = Billing::CareServiceUnit.new(tanaka_invoice.invoice_lines.sum(:line_total))
+regional_multiplier = Billing::AreaGradeResolver.new.resolve(city_name: billing_tenant.city_name).to_regional_multiplier
+
+# Additional domain-level verification values (limit excess + improvement addition)
+limit_split = Billing::BenefitLimitManagementService.new.split_units(
+  monthly_total_units: monthly_total_units,
+  benefit_limit_units: Billing::CareServiceUnit.new(16_765)
+)
+improvement_units = Billing::ImprovementAdditionCalculator.new.calculate_units(
+  insured_units: limit_split.insured_units,
+  rate: "0.245"
+)
+complex_calculation = Billing::InvoiceCalculationService.new.calculate(
+  insured_units: limit_split.insured_units,
+  self_pay_units: limit_split.self_pay_units,
+  improvement_addition_units: improvement_units,
+  regional_multiplier: regional_multiplier,
+  copayment_rate: "0.1"
+)
+
+puts "[seed] Tanaka case ready (2026-02): tenant=#{billing_tenant.slug}, client=#{tanaka_client.name}"
+puts "[seed]  service days=#{tanaka_service_dates.size}, invoice_id=#{tanaka_invoice.id}"
+puts "[seed]  monthly_total_units=#{monthly_total_units.value} (expected 17028)"
+puts "[seed]  invoice subtotal=#{tanaka_invoice.subtotal_amount}, copayment=#{tanaka_invoice.total_amount}, excess=#{tanaka_invoice.excess_copayment_amount}"
+puts "[seed]  domain split insured=#{limit_split.insured_units.value}, self_pay=#{limit_split.self_pay_units.value}, improvement=#{improvement_units.value}"
+puts "[seed]  domain final copayment(with limit/improvement)=#{complex_calculation.final_copayment_yen.value}"

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_28_143000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_01_001000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -52,6 +52,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_143000) do
 
   create_table "clients", force: :cascade do |t|
     t.string "address"
+    t.integer "benefit_limit_units"
     t.date "birth_date"
     t.integer "copayment_rate", default: 1, null: false
     t.datetime "created_at", null: false
@@ -68,6 +69,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_143000) do
     t.index ["tenant_id", "name"], name: "index_clients_on_tenant_id_and_name"
     t.index ["tenant_id", "status"], name: "index_clients_on_tenant_id_and_status"
     t.index ["tenant_id"], name: "index_clients_on_tenant_id"
+    t.check_constraint "benefit_limit_units IS NULL OR benefit_limit_units >= 0", name: "clients_benefit_limit_units_non_negative"
     t.check_constraint "copayment_rate = ANY (ARRAY[1, 2, 3])", name: "clients_copayment_rate_range"
   end
 
@@ -139,8 +141,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_28_143000) do
     t.bigint "client_id", null: false
     t.integer "copayment_rate", default: 1, null: false
     t.datetime "created_at", null: false
+    t.integer "excess_copayment_amount", default: 0, null: false
     t.datetime "generated_at"
     t.bigint "generated_by_user_id"
+    t.integer "insurance_claim_amount", default: 0, null: false
+    t.integer "insured_copayment_amount", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.integer "subtotal_amount", default: 0, null: false
     t.bigint "tenant_id", null: false

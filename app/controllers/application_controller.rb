@@ -223,9 +223,10 @@ class ApplicationController < ActionController::API
 
   def invoice_breakdown_response(invoice)
     total_cost_yen = Billing::YenAmount.new(invoice.subtotal_amount)
+    excess_copayment_yen = Billing::YenAmount.new(invoice_excess_copayment_amount(invoice))
     breakdown = Billing::CopaymentBreakdownService.new.calculate(
       total_cost_yen: total_cost_yen,
-      excess_copayment_yen: Billing::YenAmount.new(0),
+      excess_copayment_yen: excess_copayment_yen,
       copayment_rate: extract_invoice_copayment_rate(invoice)
     )
 
@@ -236,6 +237,12 @@ class ApplicationController < ActionController::API
       excess_copayment_amount: breakdown.excess_copayment_yen.value,
       copayment_amount: breakdown.final_copayment_yen.value
     }
+  end
+
+  def invoice_excess_copayment_amount(invoice)
+    return 0 unless invoice.respond_to?(:has_attribute?) && invoice.has_attribute?(:excess_copayment_amount)
+
+    Integer(invoice[:excess_copayment_amount], exception: false) || 0
   end
 
   def extract_invoice_copayment_rate(invoice)

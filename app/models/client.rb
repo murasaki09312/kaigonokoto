@@ -14,6 +14,7 @@ class Client < ApplicationRecord
 
   validates :name, presence: true
   validates :copayment_rate, inclusion: { in: [ 1, 2, 3 ] }
+  validates :benefit_limit_units, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
   validates :phone, format: { with: PHONE_FORMAT }, allow_blank: true
   validates :emergency_contact_phone, format: { with: PHONE_FORMAT }, allow_blank: true
 end

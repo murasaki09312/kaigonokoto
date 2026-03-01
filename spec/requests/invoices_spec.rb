@@ -365,6 +365,47 @@ RSpec.describe "Invoices", type: :request do
       expect(response).to have_http_status(:not_found)
       expect(json_body.dig("error", "code")).to eq("not_found")
     end
+
+    it "returns persisted excess copayment amount for invoices with limit overflow" do
+      invoice = tenant_a.invoices.create!(
+        tenant: tenant_a,
+        client: tenant_a_client_1,
+        billing_month: month_start,
+        status: :draft,
+        copayment_rate: 1,
+        subtotal_amount: 227_504,
+        total_amount: 25_617,
+        insurance_claim_amount: 204_753,
+        insured_copayment_amount: 22_751,
+        excess_copayment_amount: 2_866,
+        generated_by_user: manager_user,
+        generated_at: Time.current
+      )
+      invoice.invoice_lines.create!(
+        tenant: tenant_a,
+        attendance: a_attendance_present_1,
+        price_item: tenant_a_price_item,
+        service_date: Date.new(2026, 2, 2),
+        item_name: "通所介護基本報酬",
+        quantity: 1.0,
+        unit_price: 658,
+        line_total: 658,
+        metadata: {
+          "service_code" => "151111",
+          "units" => 658,
+          "copayment_rate" => "0.1"
+        }
+      )
+
+      get "/api/v1/invoices/#{invoice.id}", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(json_body.dig("invoice", "copayment_rate")).to eq(0.1)
+      expect(json_body.dig("invoice", "insurance_claim_amount")).to eq(204_753)
+      expect(json_body.dig("invoice", "insured_copayment_amount")).to eq(22_751)
+      expect(json_body.dig("invoice", "excess_copayment_amount")).to eq(2_866)
+      expect(json_body.dig("invoice", "copayment_amount")).to eq(25_617)
+    end
   end
 
   describe "GET /api/v1/invoices/:id/receipt" do
@@ -429,6 +470,42 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:not_found)
       expect(json_body.dig("error", "code")).to eq("not_found")
+    end
+
+    it "returns 422 instead of 500 when receipt items contain unit mismatch for the same service code" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+
+      extra_reservation = tenant_a.reservations.create!(
+        client: tenant_a_client_1,
+        service_date: Date.new(2026, 2, 7),
+        status: :scheduled
+      )
+      extra_attendance = tenant_a.attendances.create!(
+        tenant: tenant_a,
+        reservation: extra_reservation,
+        status: :present
+      )
+      invoice.invoice_lines.create!(
+        tenant: tenant_a,
+        attendance: extra_attendance,
+        price_item: tenant_a_price_item,
+        service_date: extra_reservation.service_date,
+        item_name: "通所介護基本利用料",
+        quantity: 1.0,
+        unit_price: 1200,
+        line_total: 1200,
+        metadata: {
+          "service_code" => "151111",
+          "units" => 1300
+        }
+      )
+
+      get "/api/v1/invoices/#{invoice.id}/receipt", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+      expect(json_body.dig("error", "message")).to include("unit score mismatch")
     end
   end
 end

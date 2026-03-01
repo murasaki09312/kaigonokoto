@@ -198,9 +198,9 @@ class InvoiceGenerationService
 
     invoice.subtotal_amount = result.total_cost_yen.value
     invoice.total_amount = result.final_copayment_yen.value
-    invoice.insurance_claim_amount = result.insurance_claim_yen.value
-    invoice.insured_copayment_amount = result.insured_copayment_yen.value
-    invoice.excess_copayment_amount = result.excess_copayment_yen.value
+    invoice.insurance_claim_amount = result.insurance_claim_yen.value if invoice.respond_to?(:insurance_claim_amount=)
+    invoice.insured_copayment_amount = result.insured_copayment_yen.value if invoice.respond_to?(:insured_copayment_amount=)
+    invoice.excess_copayment_amount = result.excess_copayment_yen.value if invoice.respond_to?(:excess_copayment_amount=)
   end
 
   def units_for(price_item:)

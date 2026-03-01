@@ -46,9 +46,9 @@ module Api
         if csv_request?
           csv = Billing::TransmissionCsvGenerator.new(invoice: invoice, receipt_items: receipt_items).generate
           send_data(
-            csv,
+            encode_transmission_csv(csv),
             filename: receipt_csv_filename(invoice),
-            type: "text/csv; charset=utf-8",
+            type: "text/csv; charset=Shift_JIS",
             disposition: "attachment"
           )
           return
@@ -166,6 +166,10 @@ module Api
       def receipt_csv_filename(invoice)
         month = invoice.billing_month&.strftime("%Y%m") || Date.current.strftime("%Y%m")
         "receipt_#{month}_#{invoice.client_id}.csv"
+      end
+
+      def encode_transmission_csv(csv_string)
+        csv_string.encode(Encoding::Windows_31J, invalid: :replace, undef: :replace, replace: "")
       end
     end
   end

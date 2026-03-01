@@ -463,10 +463,13 @@ RSpec.describe "Invoices", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.headers["Content-Type"]).to include("text/csv")
+      expect(response.headers["Content-Type"]).to include("charset=shift_jis")
       expect(response.headers["Content-Disposition"]).to include("attachment")
       expect(response.headers["Content-Disposition"]).to include("receipt_202602_#{tenant_a_client_1.id}.csv")
 
-      rows = CSV.parse(response.body)
+      encoded_body = response.body.dup.force_encoding(Encoding::Windows_31J)
+      expect(encoded_body.valid_encoding?).to be(true)
+      rows = CSV.parse(encoded_body.encode(Encoding::UTF_8))
       expect(rows.first.first).to eq("1")
       expect(rows.second.first).to eq("2")
       expect(rows.last.first).to eq("3")

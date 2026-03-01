@@ -247,6 +247,7 @@ tanaka_client.assign_attributes(
   phone: "090-3333-3333",
   status: :active,
   copayment_rate: 1,
+  benefit_limit_units: 16_765,
   notes: "要介護1 / 限度額16,765単位 / 1割負担（デモケース）"
 )
 tanaka_client.save!

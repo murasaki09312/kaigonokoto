@@ -21,7 +21,8 @@ RSpec.describe InvoiceGenerationService do
         name: "田中 一郎",
         status: :active,
         copayment_rate: 1,
-        notes: "要介護1 / 限度額16,765単位 / 1割負担"
+        benefit_limit_units: 16_765,
+        notes: "要介護1 / 1割負担"
       )
 
       month_start = Date.new(2026, 2, 1)

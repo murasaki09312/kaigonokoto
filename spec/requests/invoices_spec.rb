@@ -471,5 +471,41 @@ RSpec.describe "Invoices", type: :request do
       expect(response).to have_http_status(:not_found)
       expect(json_body.dig("error", "code")).to eq("not_found")
     end
+
+    it "returns 422 instead of 500 when receipt items contain unit mismatch for the same service code" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+
+      extra_reservation = tenant_a.reservations.create!(
+        client: tenant_a_client_1,
+        service_date: Date.new(2026, 2, 7),
+        status: :scheduled
+      )
+      extra_attendance = tenant_a.attendances.create!(
+        tenant: tenant_a,
+        reservation: extra_reservation,
+        status: :present
+      )
+      invoice.invoice_lines.create!(
+        tenant: tenant_a,
+        attendance: extra_attendance,
+        price_item: tenant_a_price_item,
+        service_date: extra_reservation.service_date,
+        item_name: "通所介護基本利用料",
+        quantity: 1.0,
+        unit_price: 1200,
+        line_total: 1200,
+        metadata: {
+          "service_code" => "151111",
+          "units" => 1300
+        }
+      )
+
+      get "/api/v1/invoices/#{invoice.id}/receipt", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json_body.dig("error", "code")).to eq("validation_error")
+      expect(json_body.dig("error", "message")).to include("unit score mismatch")
+    end
   end
 end

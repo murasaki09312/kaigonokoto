@@ -253,11 +253,23 @@ class InvoiceGenerationService
   end
 
   def benefit_limit_units_for(client:)
+    column_value = Integer(client.benefit_limit_units, exception: false)
+    return Billing::CareServiceUnit.new(column_value) if column_value&.positive?
+
     notes = client.notes.to_s
     match = notes.match(/限度額\s*([0-9,]+)\s*単位/u)
-    return nil if match.nil?
+    if match
+      parsed = match[1].delete(",").to_i
+      if parsed.positive?
+        Rails.logger.warn("[InvoiceGenerationService] using deprecated notes-based benefit limit for client_id=#{client.id}")
+        return Billing::CareServiceUnit.new(parsed)
+      end
+    end
 
-    Billing::CareServiceUnit.new(match[1].delete(",").to_i)
+    if notes.present?
+      Rails.logger.warn("[InvoiceGenerationService] could not resolve benefit_limit_units for client_id=#{client.id}")
+    end
+    nil
   end
 
   def improvement_units_for(invoice:, insured_units:)

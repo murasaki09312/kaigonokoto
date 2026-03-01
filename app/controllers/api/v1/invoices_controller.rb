@@ -60,6 +60,8 @@ module Api
             total_units: total_units
           }
         }, status: :ok
+      rescue ArgumentError => exception
+        render_error("validation_error", exception.message, :unprocessable_entity)
       end
 
       def generate

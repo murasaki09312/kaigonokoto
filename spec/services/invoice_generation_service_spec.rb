@@ -95,5 +95,64 @@ RSpec.describe InvoiceGenerationService do
       expect(invoice.excess_copayment_amount).to eq(2_866)
       expect(invoice.total_amount).to eq(25_617)
     end
+
+    it "prioritizes benefit_limit_units even when it is zero" do
+      tenant = Tenant.create!(
+        name: "Billing Tenant Zero Limit",
+        slug: "billing-tenant-zero-#{SecureRandom.hex(4)}",
+        city_name: "目黒区",
+        facility_scale: :normal
+      )
+      admin_role = Role.find_or_create_by!(name: "invoice_generation_service_admin_zero")
+      user = tenant.users.create!(
+        name: "Billing Admin Zero",
+        email: "billing-admin-zero-#{SecureRandom.hex(6)}@example.com",
+        password: "Password123!",
+        password_confirmation: "Password123!",
+        roles: [ admin_role ]
+      )
+      client = tenant.clients.create!(
+        name: "山田 次郎",
+        status: :active,
+        copayment_rate: 1,
+        benefit_limit_units: 0,
+        notes: "要介護1 / 限度額16,765単位 / 1割負担"
+      )
+
+      month_start = Date.new(2026, 2, 1)
+      tenant.price_items.create!(
+        code: "day_service_basic",
+        name: "通所介護（7時間以上8時間未満）",
+        unit_price: 658,
+        billing_unit: :per_use,
+        active: true,
+        valid_from: Date.new(2026, 1, 1)
+      )
+
+      reservation = tenant.reservations.create!(
+        client: client,
+        service_date: Date.new(2026, 2, 2),
+        status: :scheduled
+      )
+      tenant.attendances.create!(
+        tenant: tenant,
+        reservation: reservation,
+        status: :present
+      )
+
+      described_class.new(
+        tenant: tenant,
+        month_start: month_start,
+        actor_user: user,
+        mode: "replace"
+      ).call
+
+      invoice = tenant.invoices.find_by!(client_id: client.id, billing_month: month_start)
+      expect(invoice.subtotal_amount).to eq(0)
+      expect(invoice.insurance_claim_amount).to eq(0)
+      expect(invoice.insured_copayment_amount).to eq(0)
+      expect(invoice.excess_copayment_amount).to eq(7_172)
+      expect(invoice.total_amount).to eq(7_172)
+    end
   end
 end

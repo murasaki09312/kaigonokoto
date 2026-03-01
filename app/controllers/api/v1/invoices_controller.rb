@@ -41,25 +41,20 @@ module Api
           .includes(invoice_lines: [ :price_item ])
           .find(@invoice.id)
 
-        daily_records = invoice.invoice_lines.order(:service_date, :id).map do |line|
-          Billing::DailyServiceRecord.new(
-            base_units: Billing::CareServiceUnit.new(extract_units(line)),
-            base_service_code: extract_service_code(line),
-            base_name: line.item_name,
-            additions: []
+        receipt_items, total_units = build_receipt_items(invoice)
+
+        if csv_request?
+          csv = Billing::TransmissionCsvGenerator.new(invoice: invoice, receipt_items: receipt_items).generate
+          send_data(
+            csv,
+            filename: receipt_csv_filename(invoice),
+            type: "text/csv; charset=utf-8",
+            disposition: "attachment"
           )
+          return
         end
 
-        receipt_items = Billing::MonthlyReceiptAggregator.new.aggregate(daily_records: daily_records)
-        total_units = receipt_items.sum { |item| item.total_units.value }
-
-        render json: {
-          invoice: invoice_response(invoice, line_count: invoice.invoice_lines.size),
-          receipt_items: receipt_items.map { |item| receipt_item_response(item) },
-          meta: {
-            total_units: total_units
-          }
-        }, status: :ok
+        render json: receipt_response(invoice: invoice, receipt_items: receipt_items, total_units: total_units), status: :ok
       rescue ArgumentError => exception
         render_error("validation_error", exception.message, :unprocessable_entity)
       end
@@ -137,6 +132,40 @@ module Api
           count: item.count,
           total_units: item.total_units.value
         }
+      end
+
+      def build_receipt_items(invoice)
+        daily_records = invoice.invoice_lines.order(:service_date, :id).map do |line|
+          Billing::DailyServiceRecord.new(
+            base_units: Billing::CareServiceUnit.new(extract_units(line)),
+            base_service_code: extract_service_code(line),
+            base_name: line.item_name,
+            additions: []
+          )
+        end
+
+        receipt_items = Billing::MonthlyReceiptAggregator.new.aggregate(daily_records: daily_records)
+        total_units = receipt_items.sum { |item| item.total_units.value }
+        [ receipt_items, total_units ]
+      end
+
+      def receipt_response(invoice:, receipt_items:, total_units:)
+        {
+          invoice: invoice_response(invoice, line_count: invoice.invoice_lines.size),
+          receipt_items: receipt_items.map { |item| receipt_item_response(item) },
+          meta: {
+            total_units: total_units
+          }
+        }
+      end
+
+      def csv_request?
+        request.format.csv? || params[:format].to_s.casecmp("csv").zero?
+      end
+
+      def receipt_csv_filename(invoice)
+        month = invoice.billing_month&.strftime("%Y%m") || Date.current.strftime("%Y%m")
+        "receipt_#{month}_#{invoice.client_id}.csv"
       end
     end
   end

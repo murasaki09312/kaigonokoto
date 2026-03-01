@@ -1,4 +1,5 @@
 require "rails_helper"
+require "csv"
 
 RSpec.describe "Invoices", type: :request do
   let!(:invoices_read) { Permission.find_or_create_by!(key: "invoices:read") }
@@ -452,6 +453,26 @@ RSpec.describe "Invoices", type: :request do
       expect(bathing_item.fetch("total_units")).to eq(40)
 
       expect(json_body.dig("meta", "total_units")).to eq(698)
+    end
+
+    it "downloads transmission CSV with 3-layer structure when format is csv" do
+      post "/api/v1/invoices/generate", params: { month: month }, as: :json, headers: auth_headers_for(manager_user)
+      invoice = tenant_a.invoices.find_by!(client_id: tenant_a_client_1.id, billing_month: month_start)
+
+      get "/api/v1/invoices/#{invoice.id}/receipt.csv", headers: auth_headers_for(reader_user)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Type"]).to include("text/csv")
+      expect(response.headers["Content-Disposition"]).to include("attachment")
+      expect(response.headers["Content-Disposition"]).to include("receipt_202602_#{tenant_a_client_1.id}.csv")
+
+      rows = CSV.parse(response.body)
+      expect(rows.first.first).to eq("1")
+      expect(rows.second.first).to eq("2")
+      expect(rows.last.first).to eq("3")
+      expect(rows.last[1]).to eq("1200")
+      expect(rows.last[2]).to eq("11772")
+      expect(rows.last[3]).to eq("1308")
     end
 
     it "returns 404 for another tenant invoice id" do

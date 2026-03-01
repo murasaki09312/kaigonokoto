@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Printer } from "lucide-react";
-import { getInvoiceReceipt, type ApiError } from "@/lib/api";
+import { ArrowLeft, Download, Printer } from "lucide-react";
+import { toast } from "sonner";
+import { downloadInvoiceReceiptCsv, getInvoiceReceipt, type ApiError } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,25 @@ export function ReceiptPreviewPage() {
   const invoice = receiptQuery.data?.invoice;
   const receiptItems = receiptQuery.data?.receiptItems ?? [];
   const totalUnits = receiptQuery.data?.totalUnits ?? 0;
+
+  const handleDownloadCsv = async () => {
+    if (!id) return;
+
+    try {
+      const { blob, filename } = await downloadInvoiceReceiptCsv(id);
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("伝送CSVをダウンロードしました");
+    } catch (error) {
+      toast.error(formatApiError(error, "伝送CSVのダウンロードに失敗しました"));
+    }
+  };
 
   if (!canReadInvoices) {
     return (
@@ -92,12 +112,18 @@ export function ReceiptPreviewPage() {
   return (
     <div className="space-y-4 print:space-y-0">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Button asChild variant="outline" className="rounded-xl">
-          <Link to={`/app/invoices/${invoice.id}`}>
-            <ArrowLeft className="mr-2 size-4" />
-            請求書へ戻る
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link to={`/app/invoices/${invoice.id}`}>
+              <ArrowLeft className="mr-2 size-4" />
+              請求書へ戻る
+            </Link>
+          </Button>
+          <Button variant="outline" className="rounded-xl" onClick={handleDownloadCsv}>
+            <Download className="mr-2 size-4" />
+            伝送CSVダウンロード
+          </Button>
+        </div>
         <Button className="rounded-xl" onClick={() => window.print()}>
           <Printer className="mr-2 size-4" />
           レセプトを出力（印刷）

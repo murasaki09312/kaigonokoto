@@ -587,6 +587,29 @@ export async function getInvoiceReceipt(id: number | string): Promise<InvoiceRec
   }
 }
 
+export async function downloadInvoiceReceiptCsv(
+  id: number | string,
+): Promise<{ blob: Blob; filename: string }> {
+  try {
+    const response = await client.get<Blob>(`/api/v1/invoices/${id}/receipt.csv`, {
+      responseType: "blob",
+      headers: {
+        Accept: "text/csv",
+      },
+    });
+
+    const disposition = response.headers["content-disposition"] as string | undefined;
+    const filename = extractFilenameFromDisposition(disposition) ?? `receipt_${id}.csv`;
+
+    return {
+      blob: response.data,
+      filename,
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
 export async function generateInvoices(payload: {
   month: string;
   mode?: "replace" | "skip";
@@ -614,4 +637,16 @@ export async function generateInvoices(payload: {
   } catch (error) {
     throw normalizeError(error);
   }
+}
+
+function extractFilenameFromDisposition(disposition?: string): string | null {
+  if (!disposition) return null;
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1] ?? null;
 }

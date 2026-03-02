@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ReceiptPreviewPage } from "./receipt-preview-page";
@@ -17,6 +17,7 @@ vi.mock("@/providers/auth-provider", () => ({
 
 vi.mock("@/lib/api", () => ({
   getInvoiceReceipt: vi.fn(),
+  downloadInvoiceReceiptCsv: vi.fn(),
 }));
 
 import * as api from "@/lib/api";
@@ -87,6 +88,7 @@ function renderPage() {
 describe("ReceiptPreviewPage", () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("renders receipt items and monthly total units", async () => {
@@ -99,5 +101,36 @@ describe("ReceiptPreviewPage", () => {
     expect(screen.getByText("151111")).toBeTruthy();
     expect(screen.getByText("155011")).toBeTruthy();
     expect(screen.getByText("14,876 単位")).toBeTruthy();
+  });
+
+  it("downloads transmission CSV when clicking download button", async () => {
+    vi.mocked(api.getInvoiceReceipt).mockResolvedValue(createReceiptResponse());
+    vi.mocked(api.downloadInvoiceReceiptCsv).mockResolvedValue({
+      blob: new Blob(["csv"], { type: "text/csv" }),
+      filename: "receipt_202602_10.csv",
+    });
+
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURLSpy: typeof URL.createObjectURL = vi.fn(() => "blob:receipt");
+    const revokeObjectURLSpy: typeof URL.revokeObjectURL = vi.fn();
+    URL.createObjectURL = createObjectURLSpy;
+    URL.revokeObjectURL = revokeObjectURLSpy;
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderPage();
+
+    const downloadButton = await screen.findByRole("button", { name: "伝送CSVダウンロード" });
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => {
+      expect(api.downloadInvoiceReceiptCsv).toHaveBeenCalledWith("42");
+      expect(createObjectURLSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith("blob:receipt");
+    });
+
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
   });
 });

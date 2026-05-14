@@ -116,7 +116,7 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.18.1)
-    jwt (3.1.2)
+    jwt (3.2.0)
       base64
     kamal (2.10.1)
       activesupport (>= 7.0)
@@ -361,7 +361,7 @@ DEPENDENCIES
   bootsnap
   brakeman (~> 8.0.4)
   debug
-  jwt (~> 3.1)
+  jwt (~> 3.2)
   kamal
   pg (~> 1.1)
   puma (>= 5.0)
